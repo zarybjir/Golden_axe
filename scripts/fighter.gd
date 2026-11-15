@@ -3,6 +3,7 @@ extends Node2D
 ## a kreslení "panáčka" z dílů. Vše běží po pevných snímcích (60 za sekundu).
 
 const Poses := preload("res://scripts/poses.gd")
+const HeroRig := preload("res://scripts/hero_rig.gd")
 
 const GRAVITY := 1200.0
 const DT := 1.0 / 60.0
@@ -46,6 +47,8 @@ var p_leg: Texture2D
 var p_weapon: Texture2D
 var weapon_grip := Vector2.ZERO
 var idle_pose := "idle"
+# Malovaná loutka (vysoké rozlišení) – když je vyplněná, kreslí se místo pixelových dílů.
+var rig_tex := {}
 
 
 func setup_parts(prefix: String, weapon: String, grip: Vector2) -> void:
@@ -59,6 +62,12 @@ func setup_parts(prefix: String, weapon: String, grip: Vector2) -> void:
 
 func is_foe() -> bool:
 	return team == 1
+
+
+func setup_rig() -> void:
+	for n in ["head", "torso", "uarm", "farm", "thigh", "shin", "hammer"]:
+		rig_tex[n] = load("res://art/hero/%s.png" % n)
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func alive() -> bool:
@@ -220,6 +229,10 @@ func _draw() -> void:
 	var back := BACK * mod
 	back.a = 1.0
 
+	if not rig_tex.is_empty():
+		_draw_rig(p, mod, back)
+		_draw_extra()
+		return
 	var leg_len := float(p_leg.get_height() - 2)
 	var torso_h := float(p_torso.get_height() - 2)
 	var root := Transform2D(0.0, Vector2(facing * body_scale, body_scale), 0.0, Vector2.ZERO)
@@ -249,6 +262,44 @@ func _draw() -> void:
 
 func _draw_extra() -> void:
 	pass
+
+
+func _draw_rig(p: Dictionary, mod: Color, back: Color) -> void:
+	var k := HeroRig.K
+	var root := Transform2D(0.0, Vector2(facing * k, k), 0.0, Vector2.ZERO)
+	var rot := float(p["rot"])
+	if rot != 0.0:
+		root = root * Transform2D(rot, Vector2(0, -2.0 / k))
+	var hip := Vector2(0, -HeroRig.LEG_LEN + float(p["dy"]) * 1.5 / k)
+	var torso := root * Transform2D(float(p["lean"]), hip)
+	_rig_leg(root, hip + HeroRig.HIP_B, float(p["lb"]), back)
+	var ua_b := _rig_seg(torso, HeroRig.SHOULDER_B, float(p["ab"]), HeroRig.UARM_A0, HeroRig.UARM_PIVOT, "uarm", back)
+	_rig_seg(ua_b, HeroRig.UARM_END, -0.3, HeroRig.FARM_A0, HeroRig.FARM_PIVOT, "farm", back)
+	_rig_leg(root, hip + HeroRig.HIP_F, float(p["lf"]), mod)
+	_rig_draw(torso, "torso", -HeroRig.TORSO_PIVOT, mod)
+	_rig_draw(torso * Transform2D(float(p["head"]), HeroRig.NECK), "head", -HeroRig.HEAD_PIVOT, mod)
+	var ua := torso * Transform2D(float(p["af"]), HeroRig.SHOULDER_F) * Transform2D(-HeroRig.UARM_A0, Vector2.ZERO)
+	_rig_draw(ua, "uarm", -HeroRig.UARM_PIVOT, mod)
+	var el := ua * Transform2D(-0.3, HeroRig.UARM_END) * Transform2D(-HeroRig.FARM_A0, Vector2.ZERO)
+	_rig_draw(el * Transform2D(float(p["w"]) + 0.3, HeroRig.FARM_END), "hammer", -HeroRig.HAMMER_GRIP, mod)
+	_rig_draw(el, "farm", -HeroRig.FARM_PIVOT, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+func _rig_seg(parent: Transform2D, at: Vector2, ang: float, a0: float, pivot: Vector2, part: String, mod: Color) -> Transform2D:
+	var m := parent * Transform2D(ang, at) * Transform2D(-a0, Vector2.ZERO)
+	_rig_draw(m, part, -pivot, mod)
+	return m
+
+
+func _rig_leg(root: Transform2D, at: Vector2, l: float, mod: Color) -> void:
+	var th := _rig_seg(root, at, l, HeroRig.THIGH_A0, HeroRig.THIGH_PIVOT, "thigh", mod)
+	_rig_seg(th, HeroRig.THIGH_END, 0.12 + absf(l) * 0.6, HeroRig.SHIN_A0, HeroRig.SHIN_PIVOT, "shin", mod)
+
+
+func _rig_draw(m: Transform2D, part: String, offset: Vector2, mod: Color) -> void:
+	draw_set_transform_matrix(m)
+	draw_texture(rig_tex[part], offset, mod)
 
 
 func _limb(xf: Transform2D, at: Vector2, ang: float, tex: Texture2D, mod: Color) -> void:

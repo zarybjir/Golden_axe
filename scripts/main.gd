@@ -401,7 +401,7 @@ func _take_shots() -> void:
 
 func _save_shot(shot_name: String) -> void:
 	var img := get_viewport().get_texture().get_image()
-	img.resize(img.get_width() * 3, img.get_height() * 3, Image.INTERPOLATE_NEAREST)
+	img.resize(1440, 900, Image.INTERPOLATE_BILINEAR)
 	img.save_png(shots_dir.path_join(shot_name + ".png"))
 
 
