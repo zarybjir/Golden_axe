@@ -6,6 +6,7 @@ signal completed(stats: Dictionary)
 const PlayerScript := preload("res://scripts/player.gd")
 const EnemyScript := preload("res://scripts/enemy.gd")
 const PropScript := preload("res://scripts/props.gd")
+const CreatureScript := preload("res://scripts/creature.gd")
 const FxScript := preload("res://scripts/fx.gd")
 const BackgroundScript := preload("res://scripts/background.gd")
 const Fighter := preload("res://scripts/fighter.gd")
@@ -14,10 +15,10 @@ const LEVEL_LEN := 2000.0
 const HALF_W := 240.0
 const MAX_TOKENS := 2
 const WAVES := [
-	{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1]]},
-	{"x": 820.0, "enemies": [["goblin", 1], ["goblin", 1], ["skeleton", -1]]},
-	{"x": 1240.0, "enemies": [["skeleton", 1], ["goblin", -1], ["goblin", 1], ["skeleton", -1]]},
-	{"x": 1760.0, "enemies": [["ogre", 1], ["goblin", -1], ["goblin", 1]], "boss": true},
+	{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1], ["goblin", 1]]},
+	{"x": 860.0, "enemies": [["rider", 1], ["goblin", -1], ["skeleton", 1]]},
+	{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["goblin", -1]]},
+	{"x": 1760.0, "enemies": [["dragon", 1], ["goblin", -1]], "boss": true},
 ]
 const BARRELS := [[300.0, 204.0, "meat"], [640.0, 268.0, "rune"], [1040.0, 212.0, "rune"],
 	[1460.0, 262.0, "meat"], [1560.0, 206.0, "rune"]]
@@ -148,18 +149,70 @@ func _camera_logic() -> void:
 func _spawn_wave(w: Dictionary) -> void:
 	var i := 0
 	for e in w["enemies"]:
-		var en := EnemyScript.new()
-		en.kind = e[0]
-		en.stage = self
 		var side: int = e[1]
-		en.pos = Vector2(cam_x + side * (HALF_W + 24.0 + i * 22.0), randf_range(Fighter.Y_MIN + 8.0, Fighter.Y_MAX - 8.0))
-		en.facing = -side
-		add_child(en)
-		fighters.append(en)
-		if en.kind == "ogre":
-			boss = en
-			Sfx.play("roar")
+		var at := Vector2(cam_x + side * (HALF_W + 40.0 + i * 40.0), randf_range(Fighter.Y_MIN + 10.0, Fighter.Y_MAX - 10.0))
+		var kind: String = e[0]
+		if kind == "dragon" or kind == "rider":
+			var cr := CreatureScript.new()
+			cr.kind = "dragon" if kind == "dragon" else "beast"
+			cr.stage = self
+			cr.pos = at + Vector2(side * 60.0, 0.0)
+			cr.facing = -side
+			if kind == "rider":
+				var gob := _make_enemy("goblin", at, side)
+				gob.mount = cr
+				gob.state = Fighter.S.RIDE
+				cr.rider = gob
+			add_child(cr)
+			fighters.append(cr)
+			if kind == "dragon":
+				boss = cr
+				Sfx.play("roar", 0.7)
+		else:
+			var en := _make_enemy(kind, at, side)
+			if kind == "ogre":
+				boss = en
+				Sfx.play("roar")
 		i += 1
+
+
+func _make_enemy(kind: String, at: Vector2, side: int) -> Node2D:
+	var en := EnemyScript.new()
+	en.kind = kind
+	en.stage = self
+	en.pos = at
+	en.facing = -side
+	add_child(en)
+	fighters.append(en)
+	return en
+
+
+## Ještěr bez jezdce poblíž hráče (pro nasednutí).
+func find_mount(p: Node2D) -> Node2D:
+	for f in fighters:
+		if f.get("rideable") == true and f.rider == null and f.alive():
+			if absf(f.pos.x - p.pos.x) < 40.0 and absf(f.pos.y - p.pos.y) < 16.0:
+				return f
+	return null
+
+
+## Plošný zásah (útoky velkých stvoření). x0..x1 je rozsah před útočníkem (záporné = za ním).
+func area_hit(att: Node2D, x0: float, x1: float, dy_tol: float, dmg: int, knock: bool, push: float, ground_only: bool = false) -> void:
+	for f in fighters:
+		if f.team == att.team or f.team == 2 or not f.can_be_hit() or f == att:
+			continue
+		if ground_only and f.z > 6.0 and f.state != Fighter.S.RIDE:
+			continue
+		var rel: float = (f.pos.x - att.pos.x) * att.facing
+		if rel < x0 or rel > x1 or absf(f.pos.y - att.pos.y) > dy_tol:
+			continue
+		var dir: int = att.facing if rel >= 0.0 else -att.facing
+		f.take_hit(dmg, dir, knock, push)
+		var hp_ := Vector2(f.pos.x, f.pos.y - f.z - 22.0 * f.body_scale)
+		fx.burst(hp_, Color("fff4c0"), 8, 140.0, 0.22, 0.0, 2.0)
+		hitstop = maxi(hitstop, 6 if knock else 3)
+		shake(3.0 if knock else 1.5, 0.12)
+		Sfx.play("heavy" if knock else "hit")
 
 
 func debug_jump_to_wave(index: int) -> void:
@@ -177,7 +230,7 @@ func debug_jump_to_wave(index: int) -> void:
 func _living_enemies() -> int:
 	var n := 0
 	for f in fighters:
-		if f != player and f.state != Fighter.S.DEAD:
+		if f != player and f.is_foe() and f.state != Fighter.S.DEAD:
 			n += 1
 	return n
 
@@ -193,6 +246,8 @@ func _clamp_all() -> void:
 			f.entered = true
 		if f.entered and f.state != Fighter.S.DOWN:
 			f.pos.x = clampf(f.pos.x, left + 6.0, right - 6.0)
+		if f.get("rideable") == true and f.rider == player:
+			f.entered = true
 
 
 # ---------------------------------------------------------------- souboj
@@ -226,8 +281,8 @@ func do_hits(att: Node2D) -> void:
 	for f in targets:
 		var dx: float = (f.pos.x - att.pos.x) * att.facing
 		var dy: float = absf(f.pos.y - att.pos.y)
-		var width: float = 9.0 * f.body_scale
-		if dx >= -6.0 and dx <= reach + width and dy <= 12.0 and absf(f.z - att.z) < 34.0:
+		var width: float = f.hit_w * f.body_scale
+		if dx >= -6.0 - width * 0.5 and dx <= reach + width and dy <= 14.0 + f.hit_depth and absf(f.z - att.z) < 70.0:
 			att.hit_done.append(f)
 			var dmg: int = int(mv["dmg"])
 			var knock: bool = mv["knock"]
@@ -270,7 +325,7 @@ func spawn_pickup(kind: String, at: Vector2) -> void:
 
 
 func _pickups() -> void:
-	if not player.alive() or player.state == Fighter.S.DOWN:
+	if not player.alive() or player.state == Fighter.S.DOWN or player.state == Fighter.S.JUMP:
 		return
 	for pr in props.duplicate():
 		if not is_instance_valid(pr):
@@ -278,7 +333,7 @@ func _pickups() -> void:
 			continue
 		if pr.kind == "barrel":
 			continue
-		if absf(pr.pos.x - player.pos.x) < 14.0 and absf(pr.pos.y - player.pos.y) < 10.0:
+		if absf(pr.pos.x - player.pos.x) < 26.0 and absf(pr.pos.y - player.pos.y) < 14.0:
 			if pr.kind == "meat":
 				player.hp = mini(player.hp + 35, player.max_hp)
 				popup("+ZDRAVÍ", pr.pos, Color("9ad870"))
@@ -296,6 +351,8 @@ func _cleanup() -> void:
 		if f == player:
 			continue
 		if f.state == Fighter.S.DEAD and f.dead_t > 45:
+			if f == boss and f.get("kind") == "dragon":
+				fx.burst(Vector2(f.pos.x, f.pos.y - 60.0), Color("f08a30"), 40, 220.0, 0.8, 200.0, 4.0)
 			score += int(f.cfg["score"])
 			kills += 1
 			# Občas po nepříteli zůstane runa nebo maso.
@@ -366,15 +423,16 @@ func _draw() -> void:
 	var px := 1600.0
 	while px < LEVEL_LEN + 40.0:
 		if absf(px - cam_x) < HALF_W + 20.0:
-			var h := 58.0 + float(int(px) % 3) * 4.0
-			draw_rect(Rect2(px, 172 - h, 12, h), Color("6a4422"))
-			draw_rect(Rect2(px + 2, 172 - h, 3, h), Color("8a5a30"))
-			draw_colored_polygon(PackedVector2Array([Vector2(px, 172 - h), Vector2(px + 6, 164 - h), Vector2(px + 12, 172 - h)]), Color("6a4422"))
+			var h := 104.0 + float(int(px) % 3) * 6.0
+			draw_rect(Rect2(px, 172 - h, 16, h), Color("6a4422"))
+			draw_rect(Rect2(px + 3, 172 - h, 4, h), Color("8a5a30"))
+			draw_colored_polygon(PackedVector2Array([Vector2(px, 172 - h), Vector2(px + 8, 160 - h), Vector2(px + 16, 172 - h)]), Color("6a4422"))
 			draw_rect(Rect2(px, 172 - h, 1, h), Color("1a120e"))
-		px += 13.0
+			draw_rect(Rect2(px, 172 - h * 0.7, 16, 4), Color("4a2c14"))
+		px += 17.0
 	# Patníky u cesty
 	for sx in [180.0, 560.0, 980.0, 1380.0]:
 		if absf(sx - cam_x) < HALF_W + 20.0:
-			draw_rect(Rect2(sx, 160, 8, 16), Color("8a8a96"))
-			draw_rect(Rect2(sx, 160, 8, 2), Color("b8b8c4"))
-			draw_rect(Rect2(sx + 6, 162, 2, 14), Color("55555f"))
+			draw_rect(Rect2(sx, 144, 14, 32), Color("8a8a96"))
+			draw_rect(Rect2(sx, 144, 14, 3), Color("b8b8c4"))
+			draw_rect(Rect2(sx + 10, 147, 4, 29), Color("55555f"))

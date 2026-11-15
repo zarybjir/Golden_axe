@@ -4,13 +4,13 @@ extends Node2D
 
 const Poses := preload("res://scripts/poses.gd")
 
-const GRAVITY := 950.0
+const GRAVITY := 1200.0
 const DT := 1.0 / 60.0
-const Y_MIN := 186.0
-const Y_MAX := 286.0
+const Y_MIN := 196.0
+const Y_MAX := 290.0
 const BACK := Color(0.68, 0.68, 0.76)
 
-enum S { IDLE, WALK, ATTACK, JUMP, DODGE, HURT, DOWN, GETUP, DEAD }
+enum S { IDLE, WALK, ATTACK, JUMP, DODGE, HURT, DOWN, GETUP, DEAD, RIDE }
 
 var stage: Node2D
 var pos := Vector2.ZERO
@@ -29,7 +29,11 @@ var move: Dictionary = {}
 var move_name := ""
 var hit_done: Array = []
 var walk_t := 0.0
-var body_scale := 1.0
+var body_scale := 2.0
+var hit_w := 9.0
+var hit_depth := 0.0
+var display_name := ""
+var mount: Node2D = null
 var down_t := 0
 var armor := false
 var telegraph := false
@@ -51,6 +55,10 @@ func setup_parts(prefix: String, weapon: String, grip: Vector2) -> void:
 	p_leg = Art.t(prefix + "_leg")
 	p_weapon = Art.t(weapon)
 	weapon_grip = grip
+
+
+func is_foe() -> bool:
+	return team == 1
 
 
 func alive() -> bool:
@@ -80,7 +88,7 @@ func physics_step() -> void:
 		invuln -= 1
 	if flash > 0:
 		flash -= 1
-	if z > 0.0 or vz > 0.0:
+	if state != S.RIDE and (z > 0.0 or vz > 0.0):
 		vz -= GRAVITY * DT
 		z += vz * DT
 		if z <= 0.0:
@@ -90,7 +98,7 @@ func physics_step() -> void:
 	pos += vel * DT
 	var fr := 900.0 if z <= 0.0 else 120.0
 	vel = vel.move_toward(Vector2.ZERO, fr * DT)
-	pos.y = clampf(pos.y, Y_MIN, Y_MAX)
+	pos.y = clampf(pos.y, Y_MIN, Y_MAX + 1.0)
 
 	match state:
 		S.HURT:
@@ -137,6 +145,9 @@ func _move_finished() -> void:
 
 ## Zásah: dmg = poškození, dir = směr úderu (+1 doprava), knock = srazit k zemi.
 func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
+	if state == S.RIDE:
+		dismount()
+		knock = true
 	hp = maxi(hp - dmg, 0)
 	flash = 6
 	telegraph = false
@@ -144,14 +155,22 @@ func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
 	if hp <= 0 or knock:
 		set_state(S.DOWN)
 		down_t = 0
-		vz = 230.0
+		vz = 300.0
 		z = maxf(z, 1.0)
-		vel = Vector2(dir * 110.0, 0.0)
+		vel = Vector2(dir * 170.0, 0.0)
 	elif armor and state == S.ATTACK:
 		pass # Zlobr se při nápřahu nenechá přerušit.
 	else:
 		set_state(S.HURT)
-		vel = Vector2(dir * push, 0.0)
+		vel = Vector2(dir * push * 1.6, 0.0)
+
+
+func dismount() -> void:
+	if mount != null and is_instance_valid(mount):
+		mount.rider = null
+	mount = null
+	if state == S.RIDE:
+		set_state(S.IDLE)
 
 
 func current_pose() -> Dictionary:
@@ -167,6 +186,8 @@ func current_pose() -> Dictionary:
 			return Poses.blend(Poses.POSES["jump"], Poses.POSES["jump"], 0.0)
 		S.DODGE:
 			return Poses.blend(Poses.POSES["dodge"], Poses.POSES["dodge"], 0.0)
+		S.RIDE:
+			return Poses.blend(Poses.POSES["ride"], Poses.POSES["ride"], 0.0)
 		S.HURT:
 			return Poses.blend(Poses.POSES["hurt"], Poses.POSES["hurt"], 0.0)
 		S.DOWN, S.DEAD:
@@ -186,8 +207,9 @@ func _draw() -> void:
 	if invuln > 0 and state != S.GETUP and state != S.DOWN and (invuln / 3) % 2 == 0:
 		return
 	# Stín na zemi
-	var sw := 11.0 * body_scale
-	_ellipse(Vector2(0, z), sw, 3.0 * body_scale, Color(0, 0, 0, 0.3))
+	if state != S.RIDE:
+		var sw := 11.0 * body_scale
+		_ellipse(Vector2(0, z), sw, 3.0 * body_scale, Color(0, 0, 0, 0.3))
 
 	var p := current_pose()
 	var mod := Color.WHITE

@@ -201,6 +201,13 @@ func _label(text: String, fsize: int) -> Label:
 
 # ---------------------------------------------------------------- automatický test
 
+func _beast() -> Node2D:
+	for f in stage.fighters:
+		if f.get("rideable") == true:
+			return f
+	return null
+
+
 func _smoke(delta: float) -> void:
 	smoke_time += delta
 	match smoke_step:
@@ -211,43 +218,82 @@ func _smoke(delta: float) -> void:
 				smoke_step = 1
 		1:
 			_mash()
-			if smoke_time > 5.0:
+			if smoke_time > 4.0:
 				stage.player.runes = 2
 				Input.action_press("magic")
 				smoke_step = 2
 		2:
 			Input.action_release("magic")
 			_mash()
-			if smoke_time > 7.0:
+			if smoke_time > 6.0:
 				stage.player.invuln = 0
 				stage.player.hp = 1
 				stage.player.take_hit(5, 1, false, 0.0)
 				smoke_step = 3
 		3:
-			if smoke_time > 10.0:
+			if smoke_time > 9.0:
 				if stage.player.state == Fighter.S.DEAD:
 					_smoke_fail("hrdina se neoživil")
 				pause()
 				smoke_step = 4
 		4:
-			if smoke_time > 10.5:
+			if smoke_time > 9.5:
 				resume()
-				stage.debug_jump_to_wave(3)
+				stage.debug_jump_to_wave(1)
 				smoke_step = 5
 		5:
 			_mash()
-			if smoke_time > 14.0:
-				stage.finish()
+			if smoke_time > 12.0:
+				var b := _beast()
+				if b == null:
+					_smoke_fail("ještěr nenalezen")
+					return
+				if b.rider != null:
+					b.rider.take_hit(5, 1, true, 0.0)
+				stage.player.pos = b.pos
+				stage.player.set_state(Fighter.S.IDLE)
+				stage.player.mount_beast(b)
 				smoke_step = 6
 		6:
+			_mash()
+			if smoke_time > 14.0:
+				stage.debug_jump_to_wave(2)
+				smoke_step = 7
+		7:
+			_mash()
 			if smoke_time > 17.0:
+				stage.debug_jump_to_wave(3)
+				smoke_step = 8
+		8:
+			_mash()
+			if smoke_time > 18.5 and stage.boss != null:
+				stage.boss.cooldown = 0
+				stage.boss.start_attack("fire")
+				smoke_step = 9
+		9:
+			_mash()
+			if smoke_time > 21.0:
+				for a in ["stomp", "tail", "bite"]:
+					if stage.boss != null:
+						stage.boss._end_attack(0)
+						stage.boss.start_attack(a)
+						for k in 100:
+							stage.boss._run_attack()
+				smoke_step = 10
+		10:
+			if smoke_time > 22.0:
+				stage.finish()
+				smoke_step = 11
+		11:
+			if smoke_time > 25.0:
 				Input.action_release("right")
+				Input.action_release("attack")
 				if state != State.RESULTS:
 					_smoke_fail("úroveň se nedokončila")
 				print("SMOKE OK score=%d kills=%d deaths=%d x=%.0f" % [
 					stage.score, stage.kills, stage.deaths, stage.player.pos.x])
 				get_tree().quit(0)
-				smoke_step = 7
+				smoke_step = 12
 
 
 func _mash() -> void:
@@ -273,44 +319,67 @@ func _smoke_fail(reason: String) -> void:
 
 # ---------------------------------------------------------------- screenshoty
 
+func _wait(sec: float) -> void:
+	await get_tree().create_timer(sec).timeout
+
+
+func _tap(action: String) -> void:
+	Input.action_press(action)
+	await get_tree().create_timer(0.05).timeout
+	Input.action_release(action)
+
+
 func _take_shots() -> void:
 	DirAccess.make_dir_recursive_absolute(shots_dir)
-	await get_tree().create_timer(1.0).timeout
+	await _wait(1.0)
 	_save_shot("1_menu")
 	start_game()
-	await get_tree().create_timer(0.8).timeout
-	_save_shot("2_start")
-	# Vlna 1: nepřátelé přicházejí, hrdina mlátí.
 	stage.debug_jump_to_wave(0)
-	await get_tree().create_timer(2.6).timeout
-	await _hold_attack_shot("3_boj", 1.0, 0.27)
+	await _wait(2.4)
+	await _tap("attack")
+	await _wait(0.12)
+	await _tap("attack")
+	await _wait(0.12)
+	_save_shot("2_boj")
+	stage.debug_jump_to_wave(1)
+	await _wait(2.6)
+	_save_shot("3_jezdec")
+	var b := _beast()
+	if b != null:
+		if b.rider != null:
+			b.rider.take_hit(5, 1, true, 0.0)
+		await _wait(1.0)
+		stage.player.pos = b.pos
+		stage.player.set_state(Fighter.S.IDLE)
+		stage.player.mount_beast(b)
+		await _wait(0.6)
+		await _tap("attack")
+		await _wait(0.5)
+		_save_shot("4_jizda")
 	stage.debug_jump_to_wave(2)
-	await get_tree().create_timer(2.8).timeout
-	_save_shot("4_kostlivci")
+	await _wait(3.0)
+	_save_shot("5_obr")
 	stage.debug_jump_to_wave(3)
-	await get_tree().create_timer(3.2).timeout
-	_save_shot("5_zlobr")
+	await _wait(3.6)
+	_save_shot("6_drak")
+	if stage.boss != null:
+		stage.boss._end_attack(0)
+		stage.boss.start_attack("fire")
+	await _wait(1.25)
+	_save_shot("7_ohen")
+	await _wait(1.2)
 	stage.player.runes = 3
-	Input.action_press("magic")
-	await get_tree().create_timer(0.1).timeout
-	Input.action_release("magic")
-	await get_tree().create_timer(0.36).timeout
-	_save_shot("6_magie")
-	await get_tree().create_timer(1.0).timeout
+	stage.player.set_state(Fighter.S.IDLE)
+	stage.player.invuln = 0
+	await _tap("magic")
+	await _wait(0.36)
+	_save_shot("8_magie")
+	await _wait(1.0)
 	pause()
-	await get_tree().create_timer(0.4).timeout
-	_save_shot("7_pauza")
+	await _wait(0.4)
+	_save_shot("9_pauza")
 	print("SHOTS OK")
 	get_tree().quit(0)
-
-
-func _hold_attack_shot(shot_name: String, dur: float, at: float) -> void:
-	Input.action_press("attack")
-	await get_tree().create_timer(0.05).timeout
-	Input.action_release("attack")
-	await get_tree().create_timer(at - 0.05).timeout
-	_save_shot(shot_name)
-	await get_tree().create_timer(maxf(dur - at, 0.0)).timeout
 
 
 func _save_shot(shot_name: String) -> void:

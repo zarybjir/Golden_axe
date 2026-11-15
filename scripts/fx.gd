@@ -16,6 +16,16 @@ func burst(pos: Vector2, color: Color, count: int, speed: float, life: float = 0
 		parts.append([pos, v, life, life, color, size, grav])
 
 
+## Proud částic jedním směrem (např. dračí oheň).
+func spray(pos: Vector2, dir: Vector2, spread: float, speed: float, count: int, colors: Array) -> void:
+	var base := dir.normalized()
+	for i in count:
+		var a := base.angle() + randf_range(-spread, spread)
+		var v := Vector2(cos(a), sin(a)) * randf_range(speed * 0.6, speed)
+		var c: Color = colors[randi() % colors.size()]
+		parts.append([pos, v, 0.55, 0.55, c, randf_range(3.0, 6.0), -40.0])
+
+
 func dust(pos: Vector2, count: int = 6) -> void:
 	for i in count:
 		var v := Vector2(randf_range(-45.0, 45.0), randf_range(-30.0, -5.0))

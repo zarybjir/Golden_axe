@@ -321,6 +321,78 @@ const BARREL := [
 	"..BBBBBBBB..",
 ]
 
+# ---------------------------------------------------------------- drak (a ještěr k jízdě – stejné díly, jiné barvy)
+const DRG_BODY := [
+	".......n...n...n..............",
+	"......rrr.rrr.rrr.............",
+	"....rrrrrrrrrrrrrrrrrr........",
+	"..rrrRrrrrrrrrRrrrrrrrrr......",
+	".rrrrrrrrrrrrrrrrrrrrrrrrr....",
+	"rrrRrrrrrrRrrrrrrrrRrrrrrrr...",
+	"rrrrrrrrrrrrrrrrrrrrrrrrrrrr..",
+	"rrrrrrrrrrrrrrrrrrrrrrrrrrrrr.",
+	"rRrrrrrrrrrrrrrrrrrrrrrrrrrrr.",
+	"rrrooooooooooooooooooooorrrrr.",
+	".rroOoOoOoOoOoOoOoOoOoOoorrr..",
+	"..rooooooooooooooooooooorr....",
+	"...RooOoOoOoOoOoOoOoOoRR......",
+	".....RRRRRRRRRRRRRRRRR........",
+]
+const DRG_HEAD := [
+	"..nn..............",
+	"...nn.............",
+	"..rrrrrr..........",
+	".rrrrrrrrrrrr.....",
+	"rrrRrrywkrrrrrrr..",
+	"rrrrrrrrrrrrrrrrrr",
+	"rrrrrrrrrrrrrrrrrk",
+	".rrrrrrrrrnrnrnrn.",
+	"..RRRRRRRRR.......",
+]
+const DRG_JAW := [
+	".RRRRRRRRRR...",
+	"RrrrrrrrrnRnRn",
+	".RRRRRRRRRRRR.",
+]
+const DRG_NECK := [
+	"..rrrrr..",
+	".rrrrrrr.",
+	"rrrRrrrrr",
+	"rrrrrrrrr",
+	"rrrrrrrrr",
+	"oooooooor",
+	".ooooooo.",
+	"..ooooo..",
+]
+const DRG_TAIL := [
+	".rrrrr.",
+	"rrrRrrr",
+	"rrrrrrr",
+	"ooooooo",
+	".ooooo.",
+]
+const DRG_TIP := [
+	"....rr...",
+	"..rrrrr..",
+	"rrrrrrrrr",
+	"..rrrrr..",
+	"....rr...",
+]
+const DRG_LEG := [
+	"rrrrrr..",
+	"rrrRrrr.",
+	"rrrrrrr.",
+	".rrrrr..",
+	".rrRrr..",
+	".rrrrr..",
+	"..rrrr..",
+	"..rrrr..",
+	"..rrrrr.",
+	".rrrrrrr",
+	"nRnRnRnR",
+]
+const BEAST_REMAP := {"r": "g", "R": "G", "o": "l", "O": "g", "y": "r"}
+
 const SKY := ["2e4a7a", "3a5e92", "4a74a8", "6a8cb8", "8aa4c0", "aebcc4", "d4ccb4", "e8c89a"]
 const BAYER := [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
 
@@ -343,6 +415,11 @@ func _ready() -> void:
 	}
 	for key in src:
 		tex[key] = make(src[key])
+	var drg := {"body": DRG_BODY, "head": DRG_HEAD, "jaw": DRG_JAW, "neck": DRG_NECK,
+		"tail": DRG_TAIL, "tip": DRG_TIP, "leg": DRG_LEG}
+	for key in drg:
+		tex["drg_" + key] = make(drg[key])
+		tex["beast_" + key] = make(drg[key], true, BEAST_REMAP)
 	sky = _make_sky(480, 300)
 	road = _make_road(64, 132)
 
@@ -352,7 +429,7 @@ func t(key: String) -> Texture2D:
 
 
 ## Převede pole řetězců na texturu s 1px tmavým obrysem.
-func make(rows: Array, outline: bool = true) -> Texture2D:
+func make(rows: Array, outline: bool = true, remap: Dictionary = {}) -> Texture2D:
 	var pad := 1 if outline else 0
 	var h: int = rows.size()
 	var w: int = 1
@@ -364,6 +441,8 @@ func make(rows: Array, outline: bool = true) -> Texture2D:
 		var line: String = rows[y]
 		for x in line.length():
 			var c: String = line[x]
+			if remap.has(c):
+				c = remap[c]
 			if PAL.has(c):
 				img.set_pixel(x + pad, y + pad, PAL[c])
 	if outline:

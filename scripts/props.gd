@@ -49,6 +49,7 @@ func _draw() -> void:
 		_:
 			tex = Art.t("meat")
 			lift = 2.0 + sin(t * 3.0) * 1.0
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(2, 2))
 	var pts := PackedVector2Array()
 	for i in 12:
 		var a := TAU * i / 12.0

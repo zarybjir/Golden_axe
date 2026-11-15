@@ -4,7 +4,7 @@ extends "res://scripts/fighter.gd"
 ## 8 snímků (input buffer), takže stisk těsně před koncem úderu se nikdy neztratí.
 ## Údery jdou řetězit do komba a rušit úskokem nebo skokem.
 
-const SPEED := Vector2(104.0, 66.0)
+const SPEED := Vector2(150.0, 84.0)
 const BUF := 8
 
 var buf := {"attack": 0, "jump": 0, "dodge": 0, "magic": 0}
@@ -76,6 +76,8 @@ func tick() -> void:
 				var h: Array = move["hit"]
 				if state_t >= int(h[0]) and state_t <= int(h[1]):
 					stage.do_hits(self)
+		S.RIDE:
+			_ride(dir)
 		S.DODGE:
 			# Úskok lze po 9 snímcích přerušit útokem.
 			if state_t >= 9 and _take("attack"):
@@ -97,7 +99,11 @@ func _neutral(dir: Vector2) -> void:
 		_dodge(dir)
 		return
 	if _take("jump"):
-		_jump(dir)
+		var b = stage.find_mount(self)
+		if b != null:
+			mount_beast(b)
+		else:
+			_jump(dir)
 		return
 	if _take("attack"):
 		_face(dir)
@@ -129,7 +135,7 @@ func _jump(dir: Vector2) -> void:
 	move = {}
 	move_name = ""
 	air_attacked = false
-	vz = 330.0
+	vz = 440.0
 	z = 0.5
 	jump_vx = dir.x * SPEED.x * 1.1
 	Sfx.play("jump")
@@ -142,7 +148,7 @@ func _dodge(dir: Vector2) -> void:
 		dx = signf(dir.x)
 		facing = int(dx)
 	set_state(S.DODGE)
-	vel = Vector2(dx * 250.0, dir.y * 120.0)
+	vel = Vector2(dx * 360.0, dir.y * 170.0)
 	invuln = 12
 	Sfx.play("dodge")
 	stage.fx.dust(pos, 5)
@@ -157,3 +163,32 @@ func _landed() -> void:
 		Sfx.play("land")
 	else:
 		super._landed()
+
+
+# ---------------------------------------------------------------- jízda na ještěrovi
+
+func mount_beast(b: Node2D) -> void:
+	mount = b
+	b.rider = self
+	b.cooldown = 0
+	set_state(S.RIDE)
+	invuln = 20
+	Sfx.play("roar", 1.4)
+	stage.popup("NA KONĚ!", pos + Vector2(-20, -60), Color("9ad870"))
+
+
+func _ride(dir: Vector2) -> void:
+	var b = mount
+	if b == null or not is_instance_valid(b):
+		dismount()
+		return
+	if _take("jump") or _take("dodge"):
+		dismount()
+		_jump(dir)
+		return
+	if b.attack == "" and _take("attack"):
+		b.start_attack("tail" if absf(dir.x) < 0.2 else "bite")
+		b.telegraph = false
+		b.atk_t = 20
+		return
+	b.drive(dir)

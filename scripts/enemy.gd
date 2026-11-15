@@ -3,12 +3,13 @@ extends "res://scripts/fighter.gd"
 ## má čitelný nápřah (postava zežloutne a nad hlavou se ukáže "!").
 
 const KINDS := {
-	"goblin": {"hp": 26, "speed": Vector2(56, 38), "reach": 28.0, "attack": "gob_atk", "cool": 46,
-		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.0, "score": 100},
-	"skeleton": {"hp": 34, "speed": Vector2(46, 32), "reach": 46.0, "attack": "sp_atk", "cool": 64,
-		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 1.0, "score": 150, "idle": "sp_idle"},
-	"ogre": {"hp": 220, "speed": Vector2(40, 30), "reach": 52.0, "attack": "ogre_slam", "cool": 56,
-		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 1.35, "score": 2000, "armor": true},
+	"goblin": {"hp": 26, "speed": Vector2(84, 50), "reach": 28.0, "attack": "gob_atk", "cool": 46,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.7, "score": 100},
+	"skeleton": {"hp": 34, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
+		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
+	"ogre": {"hp": 260, "speed": Vector2(56, 34), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
+		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3000, "armor": true,
+		"name": "OBR GRUMOR", "hit_w": 7.0, "depth": 10.0},
 }
 
 var kind := "goblin"
@@ -29,8 +30,11 @@ func _ready() -> void:
 	body_scale = float(cfg["scale"])
 	armor = bool(cfg.get("armor", false))
 	idle_pose = String(cfg.get("idle", "idle"))
+	display_name = String(cfg.get("name", ""))
+	hit_w = float(cfg.get("hit_w", 9.0))
+	hit_depth = float(cfg.get("depth", 0.0))
 	cooldown = 30 + randi() % 50
-	slot = randf_range(-34.0, 34.0)
+	slot = randf_range(-40.0, 40.0)
 
 
 func tick() -> void:
@@ -40,6 +44,8 @@ func tick() -> void:
 		_release()
 		return
 	match state:
+		S.RIDE:
+			pass # Pohyb řídí ještěr.
 		S.IDLE, S.WALK:
 			_ai()
 		S.HURT, S.DOWN, S.GETUP:
@@ -56,13 +62,13 @@ func _ai() -> void:
 	facing = 1 if dx > 0.0 else -1
 	if not p.alive() or p.state == S.DOWN or p.state == S.DEAD:
 		_release()
-		_walk_to(Vector2(p.pos.x - facing * 110.0, clampf(p.pos.y + slot, Y_MIN, Y_MAX)))
+		_walk_to(Vector2(p.pos.x - facing * 160.0, clampf(p.pos.y + slot, Y_MIN, Y_MAX)))
 		return
 	if not has_token:
 		has_token = stage.request_token(self)
 	var reach: float = float(cfg["reach"]) * body_scale
 	if has_token:
-		if kind == "ogre" and cooldown <= 0 and absf(dy) < 10.0 and absf(dx) > 90.0 and absf(dx) < 220.0:
+		if kind == "ogre" and cooldown <= 0 and absf(dy) < 12.0 and absf(dx) > 130.0 and absf(dx) < 260.0:
 			start_move("ogre_charge")
 			Sfx.play("roar")
 			return
@@ -71,7 +77,7 @@ func _ai() -> void:
 			return
 		_walk_to(Vector2(p.pos.x - facing * reach * 0.75, p.pos.y))
 	else:
-		_walk_to(Vector2(p.pos.x - facing * 96.0, clampf(p.pos.y + slot, Y_MIN, Y_MAX)))
+		_walk_to(Vector2(p.pos.x - facing * 150.0, clampf(p.pos.y + slot, Y_MIN, Y_MAX)))
 
 
 func _walk_to(target: Vector2) -> void:
@@ -103,7 +109,7 @@ func _release() -> void:
 
 func _draw_extra() -> void:
 	if telegraph and state == S.ATTACK:
-		var y := -48.0 * body_scale - z * 0.0
+		var y := -44.0 * body_scale
 		draw_rect(Rect2(-2, y, 4, 9), Color("f0d050"))
 		draw_rect(Rect2(-2, y + 11, 4, 3), Color("f0d050"))
 		draw_rect(Rect2(-3, y - 1, 6, 1), Color("1a120e"))
