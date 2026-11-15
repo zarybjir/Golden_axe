@@ -171,7 +171,7 @@ func debug_jump_to_wave(index: int) -> void:
 	locked = false
 	wave_i = index
 	cam_x = float(WAVES[index]["x"]) - 1.0
-	player.pos = Vector2(cam_x - 80.0, 236.0)
+	player.pos = Vector2(cam_x + 10.0, 236.0)
 
 
 func _living_enemies() -> int:
