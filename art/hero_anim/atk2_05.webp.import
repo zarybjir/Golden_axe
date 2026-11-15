@@ -5,7 +5,7 @@ type="CompressedTexture2D"
 
 [deps]
 
-source_file="res://art/hero_anim/atk1_07.webp"
+source_file="res://art/hero_anim/atk2_05.webp"
 
 [params]
 

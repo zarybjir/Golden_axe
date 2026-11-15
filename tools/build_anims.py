@@ -24,8 +24,8 @@ SOURCES = {
 ANIMS = {
     "idle": ("v2", list(range(46, 86, 2)), 6.0, True, -1, "ground"),
     "walk": ("v2", list(range(9, 25)), 12.0, True, -1, "ground"),
-    "atk1": ("v3", [50, 51, 50, 49, 48, 48, 49, 47], 12.0, False, 4, "ground"),
-    "atk2": ("v3", [62, 63, 64, 65, 66], 12.0, False, 2, "ground"),
+    "atk1": ("v3", [55, 56, 57, 58, 59, 60, 61], 12.0, False, 3, "ground"),
+    "atk2": ("v3", [61, 62, 63, 64, 65, 66], 12.0, False, 2, "ground"),
     "atk3": ("v3", list(range(71, 82)), 12.0, False, 6, "ground"),
     "jump": ("v3", [111, 101, 102, 103, 104, 112], 12.0, False, -1, "feet"),
     "magic": ("v3", list(range(140, 165)), 12.0, False, 12, "ground"),
