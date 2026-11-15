@@ -369,10 +369,12 @@ func _take_shots() -> void:
 		stage.player.pos = b.pos
 		stage.player.set_state(Fighter.S.IDLE)
 		stage.player.mount_beast(b)
-		await _wait(0.6)
-		await _tap("attack")
+		stage.player.invuln = 600
 		await _wait(0.5)
 		_save_shot("4_jizda")
+		await _tap("attack")
+		await _wait(0.5)
+		_save_shot("4b_jizda_utok")
 	stage.debug_jump_to_wave(2)
 	await _wait(3.0)
 	_save_shot("5_obr")
