@@ -52,6 +52,16 @@ jobs:
           command -v zip >/dev/null || (apt-get update -qq && apt-get install -y -qq zip)
           cd build && zip -r Kladivo-linux.zip Kladivo
 
+      - name: Export Web (hraní v prohlížeči na mobilu)
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release "Web" build/web/index.html
+          ls -la build/web
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
       - uses: actions/upload-artifact@v4
         with:
           name: Kladivo-linux
@@ -67,3 +77,17 @@ jobs:
             build/Kladivo-linux.zip
             shots/*.png
           make_latest: true
+
+  web:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

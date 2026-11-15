@@ -5,6 +5,7 @@ const StageScript := preload("res://scripts/stage.gd")
 const HudScript := preload("res://scripts/hud.gd")
 const BackgroundScript := preload("res://scripts/background.gd")
 const Fighter := preload("res://scripts/fighter.gd")
+const TouchScript := preload("res://scripts/touch.gd")
 
 enum State { TITLE, PLAYING, PAUSED, RESULTS }
 
@@ -16,6 +17,7 @@ var ui_layer: CanvasLayer
 var menu: Control = null
 var title_bg: CanvasLayer = null
 var ui_theme: Theme
+var touch: TouchScript = null
 
 var smoke := false
 var smoke_time := 0.0
@@ -45,6 +47,16 @@ func _ready() -> void:
 	ui_layer.layer = 10
 	add_child(ui_layer)
 
+	if DisplayServer.is_touchscreen_available():
+		touch = TouchScript.new()
+		touch.setup([
+			{"action": "attack", "label": "X", "offset": Vector2(98, 48), "r": 17.0},
+			{"action": "jump", "label": "A", "offset": Vector2(62, 22), "r": 17.0},
+			{"action": "dodge", "label": "B", "offset": Vector2(26, 48), "r": 17.0},
+			{"action": "magic", "label": "Y", "offset": Vector2(62, 82), "r": 15.0},
+		], true)
+		add_child(touch)
+
 	show_title()
 	if shots_dir != "":
 		_take_shots()
@@ -65,6 +77,7 @@ func _process(delta: float) -> void:
 # ---------------------------------------------------------------- obrazovky
 
 func show_title() -> void:
+	_set_touch(false)
 	state = State.TITLE
 	get_tree().paused = false
 	_clear_stage()
@@ -91,9 +104,11 @@ func start_game() -> void:
 	world.add_child(stage)
 	hud.stage = stage
 	state = State.PLAYING
+	_set_touch(true)
 
 
 func pause() -> void:
+	_set_touch(false)
 	state = State.PAUSED
 	get_tree().paused = true
 	Sfx.play("select")
@@ -109,9 +124,11 @@ func resume() -> void:
 	_close_menu()
 	get_tree().paused = false
 	state = State.PLAYING
+	_set_touch(true)
 
 
 func _on_completed(stats: Dictionary) -> void:
+	_set_touch(false)
 	state = State.RESULTS
 	get_tree().paused = true
 	var secs := int(stats["time"])
@@ -386,3 +403,8 @@ func _save_shot(shot_name: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	img.resize(img.get_width() * 3, img.get_height() * 3, Image.INTERPOLATE_NEAREST)
 	img.save_png(shots_dir.path_join(shot_name + ".png"))
+
+
+func _set_touch(on: bool) -> void:
+	if touch != null:
+		touch.active = on
