@@ -316,7 +316,7 @@ func _draw() -> void:
 	var p := Vector2(-15, -14)
 	for i in 6:
 		var a := PI - 0.25 + sin(anim * 3.0 - i * 0.7) * 0.18 + tail_swing * (float(i + 1) / 6.0)
-		p += Vector2(cos(a), sin(a) * 0.6 + 0.35) * 7.0
+		p += Vector2(cos(a), sin(a) * 0.5 + 0.12) * 6.0
 		draw_set_transform_matrix(root * Transform2D(0.0, p))
 		draw_texture(seg if i < 5 else Art.t(prefix + "_tip"), -Vector2(seg.get_size()) * 0.5, mod)
 	# Tělo
