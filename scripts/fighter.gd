@@ -297,13 +297,15 @@ func _anim_pick() -> Array:
 			var f := clampf(0.5 - vz / 880.0, 0.0, 1.0)
 			return ["jump", 1 + int(f * float(n - 3)), 0.0]
 		S.DODGE:
-			return ["dodge", mini(state_t / 6, 1), 0.0]
+			return ["dodge", state_t * 6 / 15, 0.0]
 		S.HURT:
 			return ["idle", 0, -0.18]
-		S.DOWN, S.DEAD:
-			return ["down", state_t / 10, 0.0]
+		S.DOWN:
+			return ["down", state_t / 3, 0.0]
+		S.DEAD:
+			return ["down", 99, 0.0]
 		S.GETUP:
-			return ["getup", state_t * 8 / 18, 0.0]
+			return ["getup", state_t * 14 / 18, 0.0]
 		S.RIDE:
 			return ["walk", 0, 0.0]
 	return ["idle", int(anim_clock * 6.0), 0.0]
