@@ -369,7 +369,13 @@ func _take_shots() -> void:
 		stage.player.pos = b.pos
 		stage.player.set_state(Fighter.S.IDLE)
 		stage.player.mount_beast(b)
-		stage.player.invuln = 600
+		# Pro snímek: odklidit ostatní nepřátele, aby hrdinu nikdo neshodil.
+		for f in stage.fighters.duplicate():
+			if f != stage.player and f != b:
+				stage.fighters.erase(f)
+				f.queue_free()
+		stage.tokens.clear()
+		stage.player.invuln = 0
 		await _wait(0.5)
 		_save_shot("4_jizda")
 		await _tap("attack")
