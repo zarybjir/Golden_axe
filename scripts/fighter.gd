@@ -307,7 +307,7 @@ func _anim_pick() -> Array:
 		S.GETUP:
 			return ["getup", state_t * 14 / 18, 0.0]
 		S.RIDE:
-			return ["walk", 0, 0.0]
+			return ["ride", 0, 0.0]
 	return ["idle", int(anim_clock * 6.0), 0.0]
 
 

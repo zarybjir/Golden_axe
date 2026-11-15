@@ -12,6 +12,7 @@ from PIL import Image
 
 HERO_HEIGHT = 88.0      # výška hrdiny ve hře (logické pixely)
 TEX_HEIGHT = 330.0      # výška hrdiny v texturách (px)
+RIDE_DROP = 150.0       # o kolik px (ve videu) je jezdec posazený níž
 
 # Zdrojová videa (snímky po tools/video_to_frames.py při 12 fps):
 #   složka (relativně k argumentu skriptu), kotva = místo mezi chodidly na zemi, výška hrdiny ve videu
@@ -26,7 +27,8 @@ ANIMS = {
     "walk": ("v2", list(range(9, 25)), 12.0, True, -1, "ground"),
     "atk1": ("v3", [55, 56, 57, 58, 59, 60, 61], 12.0, False, 3, "ground"),
     "atk2": ("v3", [61, 62, 63, 64, 65, 66], 12.0, False, 2, "ground"),
-    "atk3": ("v3", list(range(71, 82)), 12.0, False, 6, "ground"),
+    "atk3": ("v3", [71, 72, 73, 74, 77, 78, 79, 80, 81], 12.0, False, 4, "ground"),
+    "ride": ("v3", [111], 1.0, True, -1, "ride"),
     "jump": ("v3", [111, 101, 102, 103, 104, 112], 12.0, False, -1, "feet"),
     "magic": ("v3", list(range(140, 165)), 12.0, False, 12, "ground"),
     "down": ("v3", list(range(83, 100)), 12.0, False, -1, "ground"),
@@ -62,7 +64,12 @@ def main(frames_root):
             fname = f"{name}_{n:02d}.webp"
             crop.save(os.path.join(out_dir, fname), quality=88, method=6)
             ax = anc[0] * scale
-            ay = anc[1] * scale if anchor == "ground" else float(y1)
+            if anchor == "ground":
+                ay = anc[1] * scale
+            elif anchor == "ride":
+                ay = (anc[1] - RIDE_DROP) * scale   # v sedle: nohy visí pod úroveň sedla
+            else:
+                ay = float(y1)
             paths.append(f'"res://art/hero_anim/{fname}"')
             offs.append(f"Vector2({x0 - ax:.1f}, {y0 - ay:.1f})")
         lines.append(f'\t"{name}": {{"fps": {fps}, "loop": {str(loop).lower()}, "impact": {impact},')
