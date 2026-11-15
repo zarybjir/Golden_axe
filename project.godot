@@ -1,0 +1,44 @@
+; Engine configuration file.
+; Godot 4.4
+
+config_version=5
+
+[application]
+
+config/name="Kladivo: Kovářova pomsta"
+config/description="Fantasy beat 'em up pro Linux / SteamOS."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+Art="*res://scripts/art.gd"
+Sfx="*res://scripts/sfx.gd"
+Controls="*res://scripts/controls.gd"
+
+[display]
+
+window/size/viewport_width=480
+window/size/viewport_height=300
+window/size/mode=3
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+window/stretch/scale_mode="integer"
+
+[gui]
+
+theme/default_font_antialiasing=0
+theme/default_font_subpixel_positioning=0
+
+[physics]
+
+common/physics_ticks_per_second=60
+common/max_physics_steps_per_frame=4
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_clear_color=Color(0.08, 0.06, 0.05, 1)

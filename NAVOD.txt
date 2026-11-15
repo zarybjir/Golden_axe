@@ -1,0 +1,17 @@
+KLADIVO: KOVÁŘOVA POMSTA
+========================
+
+Spuštění: dvojklik na Kladivo.x86_64 (nebo přidat do Steamu jako "Non-Steam Game").
+
+Ovládání (gamepad / klávesnice):
+  Pohyb ............ levá páčka, D-pad / WASD, šipky
+  Úder ............. X / J      (mačkej opakovaně = kombo 3 úderů, třetí srazí k zemi)
+  Skok ............. A / K, mezerník  (ve vzduchu X = úder ze skoku)
+  Úskok ............ B / L, Shift     (krátce nezranitelný, přeruší i rozmáchnutý úder)
+  Runová magie ..... Y / I      (spotřebuje všechny runy, zasáhne všechny nepřátele)
+  Pauza ............ Start / Esc
+
+Tipy: hra si pamatuje stisk tlačítka ještě 8 snímků, takže kombo jde mačkat v rytmu
+a nic se neztratí. Nepřítel, který zežloutne a má nad hlavou "!", se právě napřahuje –
+uskoč nebo ho přeruš úderem. Zlobra úder nepřeruší.
+Sudy rozbij – je v nich maso (zdraví) nebo runy.
