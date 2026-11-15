@@ -7,7 +7,9 @@ var stage: Node2D
 var pos := Vector2.ZERO
 var z := 0.0
 var team := 1
-var body_scale := 1.0
+var body_scale := 2.0
+var hit_w := 7.0
+var hit_depth := 0.0
 var t := 0.0
 var broken := false
 
