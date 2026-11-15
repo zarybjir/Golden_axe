@@ -20,7 +20,7 @@ func _ready() -> void:
 	max_hp = 100
 	hp = max_hp
 	setup_parts("hero", "hammer", Vector2(5.5, 12.0))
-	setup_rig()
+	setup_anims()
 
 
 func read_input() -> void:

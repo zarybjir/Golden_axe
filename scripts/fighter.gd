@@ -4,6 +4,7 @@ extends Node2D
 
 const Poses := preload("res://scripts/poses.gd")
 const HeroRig := preload("res://scripts/hero_rig.gd")
+const HeroAnims := preload("res://scripts/hero_anims.gd")
 
 const GRAVITY := 1200.0
 const DT := 1.0 / 60.0
@@ -49,6 +50,9 @@ var weapon_grip := Vector2.ZERO
 var idle_pose := "idle"
 # Malovaná loutka (vysoké rozlišení) – když je vyplněná, kreslí se místo pixelových dílů.
 var rig_tex := {}
+# Snímkové animace z videa (název -> pole textur). Mají přednost před loutkou.
+var anim_tex := {}
+var anim_clock := 0.0
 
 
 func setup_parts(prefix: String, weapon: String, grip: Vector2) -> void:
@@ -62,6 +66,15 @@ func setup_parts(prefix: String, weapon: String, grip: Vector2) -> void:
 
 func is_foe() -> bool:
 	return team == 1
+
+
+func setup_anims() -> void:
+	for n in HeroAnims.ANIMS:
+		var arr: Array = []
+		for path in HeroAnims.ANIMS[n]["frames"]:
+			arr.append(load(path))
+		anim_tex[n] = arr
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func setup_rig() -> void:
@@ -93,6 +106,7 @@ func start_move(name_: String) -> void:
 ## Fyzika společná pro všechny – volá se jednou za snímek ze stage.gd.
 func physics_step() -> void:
 	state_t += 1
+	anim_clock += DT
 	if invuln > 0:
 		invuln -= 1
 	if flash > 0:
@@ -229,6 +243,10 @@ func _draw() -> void:
 	var back := BACK * mod
 	back.a = 1.0
 
+	if not anim_tex.is_empty():
+		_draw_anim(mod)
+		_draw_extra()
+		return
 	if not rig_tex.is_empty():
 		_draw_rig(p, mod, back)
 		_draw_extra()
@@ -262,6 +280,65 @@ func _draw() -> void:
 
 func _draw_extra() -> void:
 	pass
+
+
+## Vybere animaci a snímek podle stavu: [název, snímek, náklon].
+func _anim_pick() -> Array:
+	match state:
+		S.WALK:
+			return ["walk", int(anim_clock * 14.0), 0.0]
+		S.ATTACK:
+			var nm := move_name if HeroAnims.ANIMS.has(move_name) else "atk1"
+			return [nm, _move_frame(nm), 0.0]
+		S.JUMP:
+			if move_name == "jatk":
+				return ["atk1", _move_frame("atk1"), 0.0]
+			var n: int = anim_tex["jump"].size()
+			var f := clampf(0.5 - vz / 880.0, 0.0, 1.0)
+			return ["jump", 1 + int(f * float(n - 3)), 0.0]
+		S.DODGE:
+			return ["dodge", mini(state_t / 6, 1), 0.0]
+		S.HURT:
+			return ["idle", 0, -0.18]
+		S.DOWN, S.DEAD:
+			return ["down", state_t / 10, 0.0]
+		S.GETUP:
+			return ["getup", state_t * 8 / 18, 0.0]
+		S.RIDE:
+			return ["walk", 0, 0.0]
+	return ["idle", int(anim_clock * 6.0), 0.0]
+
+
+## Snímek útoku tak, aby úder ve videu padl přesně na aktivní snímky útoku ve hře.
+func _move_frame(nm: String) -> int:
+	var a: Dictionary = HeroAnims.ANIMS[nm]
+	var n: int = anim_tex[nm].size()
+	var impact: int = a["impact"]
+	if impact < 0:
+		impact = n / 2
+	var h: Array = move["hit"]
+	var hit0 := maxf(float(h[0]), 1.0)
+	var ln := float(move["len"])
+	var t := float(state_t)
+	if t < hit0:
+		return int(t / hit0 * float(impact))
+	return mini(n - 1, impact + int((t - hit0) / maxf(ln - hit0, 1.0) * float(n - impact)))
+
+
+func _draw_anim(mod: Color) -> void:
+	var pick := _anim_pick()
+	var nm: String = pick[0]
+	var arr: Array = anim_tex[nm]
+	var a: Dictionary = HeroAnims.ANIMS[nm]
+	var i: int = pick[1]
+	if a["loop"]:
+		i = posmod(i, arr.size())
+	else:
+		i = clampi(i, 0, arr.size() - 1)
+	var off: Vector2 = a["offsets"][i]
+	draw_set_transform(Vector2.ZERO, float(pick[2]) * facing, Vector2(facing * HeroAnims.K, HeroAnims.K))
+	draw_texture(arr[i], off, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 func _draw_rig(p: Dictionary, mod: Color, back: Color) -> void:

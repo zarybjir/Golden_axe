@@ -280,6 +280,8 @@ func do_hits(att: Node2D) -> void:
 				targets.append(pr)
 	for f in targets:
 		var dx: float = (f.pos.x - att.pos.x) * att.facing
+		if mv.get("both", false):
+			dx = absf(dx)
 		var dy: float = absf(f.pos.y - att.pos.y)
 		var width: float = f.hit_w * f.body_scale
 		if dx >= -6.0 - width * 0.5 and dx <= reach + width and dy <= 14.0 + f.hit_depth and absf(f.z - att.z) < 70.0:
