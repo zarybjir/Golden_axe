@@ -129,6 +129,28 @@ func _drown_step() -> void:
 		modulate.a = 1.0
 
 
+## Hladina kolem topící se postavy (kreslí se přes spodní okraj těla).
+func _draw_water_surface() -> void:
+	var y := -sink + 2.0
+	var w := 26.0 + minf(float(drown_t), 30.0) * 0.4
+	var t := float(drown_t) / 60.0
+	var pts := PackedVector2Array()
+	for i in 20:
+		var a := TAU * i / 20.0
+		pts.append(Vector2(cos(a) * w, y + sin(a) * w * 0.22))
+	draw_colored_polygon(pts, Color(0.16, 0.2, 0.14, 0.75))
+	draw_polyline(pts + PackedVector2Array([pts[0]]), Color(0.7, 0.78, 0.62, 0.7), 1.5)
+	for k in 2:
+		var ph := fmod(t * 3.0 + k * 0.5, 1.0)
+		var rr := w * (0.9 + ph * 0.6)
+		var ring := PackedVector2Array()
+		for i in 20:
+			var a := TAU * i / 20.0
+			ring.append(Vector2(cos(a) * rr, y + sin(a) * rr * 0.22))
+		ring.append(ring[0])
+		draw_polyline(ring, Color(0.75, 0.82, 0.68, 0.45 * (1.0 - ph)), 1.0)
+
+
 func alive() -> bool:
 	return state != S.DEAD and hp > 0 and drown_t == 0
 
@@ -300,6 +322,8 @@ func _draw() -> void:
 
 	if not anim_tex.is_empty():
 		_draw_anim(mod)
+		if drown_t > 0:
+			_draw_water_surface()
 		_draw_extra()
 		return
 	if not rig_tex.is_empty():

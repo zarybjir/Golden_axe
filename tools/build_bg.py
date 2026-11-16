@@ -170,8 +170,8 @@ def main(biome):
             mask = (lab[y0:y1, x0:x1] == i)
             crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask * 255).astype(np.uint8)])
             im = Image.fromarray(crop, "RGBA")
-            w = 120 + 60 * (water_n % 3)
-            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.5))))
+            w = 78 + 16 * (water_n % 3)
+            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.62))))
             wa = np.asarray(wim).copy()
             # rozpitý okraj: plynulé zeslábnutí 5 px
             solid = wa[..., 3] > 0

@@ -21,14 +21,14 @@ SETS = {
         "ram": ("ram", list(range(28, 37)), False, -1),
         "attack": ("attack", [i for i in range(9, 43) if i != 28], False, 18),
         "block": ("block", [i for i in range(6, 37) if i != 10], False, -1),
-        "fall": ("fall", [i for i in range(9, 37) if i != 19], False, -1),
+        "fall": ("fall", [i for i in range(9, 37) if i != 19], False, -1, "pin"),
     }},
     "skeleton": {"src": "sk", "h": 96.0, "anchor": "v1", "anims": {
         "idle": ("v1", list(range(0, 21)) + list(range(19, 0, -1)), True, -1),
         "walk": ("v3", list(range(0, 31)), True, -1),
         "attack": ("v1", list(range(22, 51)), False, 14),
         "block": ("v2", list(range(4, 14)), False, -1),
-        "fall": ("v2", [41, 42] + list(range(44, 56)), False, -1),
+        "fall": ("v2", [41, 42] + list(range(44, 56)), False, -1, "pin"),
     }},
 }
 
@@ -51,8 +51,11 @@ def main(src):
         ax, ay = float(feet.mean()), float(bottom)
         k = cfg["h"] / float(bottom - ys.min())
         lines.append(f'\t"{kind}": {{"k": {k:.4f}, "anims": {{')
-        for name, (vid, frames, loop, impact) in anims.items():
+        for name, spec in anims.items():
+            vid, frames, loop, impact = spec[:4]
+            pin = len(spec) > 4 and spec[4] == "pin"
             paths, offs = [], []
+            cx0 = None
             for n, idx in enumerate(frames):
                 im = Image.open(f"{base}/k_{vid}/cut/r_{idx + 1:03d}.png").convert("RGBA")
                 a = np.asarray(im).copy()
@@ -68,7 +71,15 @@ def main(src):
                             f'source_file="res://art/enemy_anim/{kind}/{fn}"\n\n[params]\n\n'
                             'compress/mode=1\ncompress/lossy_quality=0.85\nmipmaps/generate=false\n')
                 paths.append(f'"res://art/enemy_anim/{kind}/{fn}"')
-                offs.append(f"Vector2({x0 - ax:.1f}, {y0 - ay:.1f})")
+                if pin:
+                    # pád: těžiště zůstává na místě, nejnižší bod těla leží na zemi
+                    yy, xx = np.nonzero(al > 128)
+                    cx = float(xx.mean())
+                    if cx0 is None:
+                        cx0 = cx - ax
+                    offs.append(f"Vector2({x0 - cx + cx0:.1f}, {y0 - y1:.1f})")
+                else:
+                    offs.append(f"Vector2({x0 - ax:.1f}, {y0 - ay:.1f})")
             lines.append(f'\t\t"{name}": {{"loop": {str(loop).lower()}, "impact": {impact},')
             lines.append(f'\t\t\t"frames": [{", ".join(paths)}],')
             lines.append(f'\t\t\t"offsets": [{", ".join(offs)}]}},')

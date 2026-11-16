@@ -344,11 +344,9 @@ func do_hits(att: Node2D) -> void:
 				targets.append(pr)
 	for f in targets:
 		var dx: float = (f.pos.x - att.pos.x) * att.facing
-		if mv.get("both", false):
-			dx = absf(dx)
 		var dy: float = absf(f.pos.y - att.pos.y)
 		var width: float = f.hit_w * f.body_scale
-		if dx >= -6.0 - width * 0.5 and dx <= reach + width and dy <= 14.0 + f.hit_depth and absf(f.z - att.z) < 70.0:
+		if dx >= -width * 0.3 and dx <= reach + width and dy <= 14.0 + f.hit_depth and absf(f.z - att.z) < 70.0:
 			att.hit_done.append(f)
 			var dmg: int = int(mv["dmg"])
 			var knock: bool = mv["knock"]
@@ -488,10 +486,10 @@ func _pools(x0: float, x1: float) -> Array:
 	for i in range(int(floorf((x0 - 400.0) / step)), int(ceilf(x1 / step)) + 1):
 		var r1 := float(absi((i * 73856093) ^ 912367) % 1000) / 1000.0
 		var r2 := float(absi((i * 19349663) ^ 4441) % 1000) / 1000.0
-		if r1 < 0.25 or i * step < 260.0:
+		if r1 < 0.3 or i * step < 260.0:
 			continue
 		var tex: Texture2D = water_tex[int(r2 * 997.0) % water_tex.size()]
-		var sc := 1.0 if r1 < 0.7 else 1.7   # občas široký brod
+		var sc := 1.0
 		var w := tex.get_width() / ParallaxScript.R * sc
 		var h := tex.get_height() / ParallaxScript.R * sc
 		out.append([Rect2(roundf(i * step + r2 * 80.0), roundf(196.0 + r1 * 70.0), w, h), tex, r2 < 0.5])
@@ -510,6 +508,13 @@ func _draw_water_anim(r: Rect2) -> void:
 		draw_set_transform(c, 0.0, Vector2(1.0, ry / maxf(rx, 1.0)))
 		draw_arc(Vector2.ZERO, rx, 0.0, TAU, 40, col, 1.2 * rx / maxf(ry, 1.0) * 0.35 + 0.6)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# bubliny – voda je hluboká a nebezpečná
+	for k in 3:
+		var ph2 := fmod(tt * 0.8 + k * 0.37, 1.0)
+		var bx := c.x + sin(k * 2.7 + floorf(tt * 0.8 + k * 0.37) * 1.3) * r.size.x * 0.22
+		var by := c.y + cos(k * 1.9) * r.size.y * 0.15
+		var br := 1.5 + ph2 * 2.5
+		draw_arc(Vector2(bx, by), br, 0.0, TAU, 12, Color(0.8, 0.88, 0.7, 0.6 * (1.0 - ph2)), 1.0)
 	for k in 4:
 		var sx := c.x + sin(tt * 1.3 + k * 1.9) * r.size.x * 0.28
 		var sy := c.y + cos(tt * 0.9 + k * 2.3) * r.size.y * 0.18
@@ -531,9 +536,9 @@ func in_pool(p: Vector2) -> bool:
 	for pl in _pools(p.x - 300.0, p.x + 300.0):
 		var r: Rect2 = pl[0]
 		var c := r.get_center()
-		# voda zabírá zhruba vnitřek tůně (bez bahnitého břehu)
-		var dx := (p.x - c.x) / (r.size.x * 0.44)
-		var dy := (p.y - c.y) / maxf(r.size.y * 0.5, 9.0)
+		# voda = vnitřek tůně uvnitř bahnitého okraje
+		var dx := (p.x - c.x) / (r.size.x * 0.36)
+		var dy := (p.y - c.y) / (r.size.y * 0.34)
 		if dx * dx + dy * dy < 1.0:
 			return true
 	return false

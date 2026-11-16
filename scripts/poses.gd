@@ -37,7 +37,7 @@ const POSES := {
 const MOVES := {
 	"atk1": {"len": 18, "hit": [5, 7], "cancel": 8, "dmg": 6, "reach": 34, "push": 40, "knock": false, "next": "atk2",
 		"keys": [[0, "idle"], [3, "a1_wind"], [5, "a1_hit"], [12, "a1_hit"], [18, "idle"]]},
-	"atk2": {"len": 22, "hit": [5, 11], "cancel": 12, "both": true, "dmg": 8, "reach": 36, "push": 50, "knock": false, "next": "atk3",
+	"atk2": {"len": 22, "hit": [5, 11], "cancel": 12, "dmg": 8, "reach": 36, "push": 50, "knock": false, "next": "atk3",
 		"keys": [[0, "a1_hit"], [4, "a2_wind"], [6, "a2_hit"], [14, "a2_hit"], [20, "idle"]]},
 	"atk3": {"len": 30, "hit": [10, 12], "cancel": 20, "dmg": 14, "reach": 40, "push": 0, "knock": true, "next": "",
 		"keys": [[0, "a2_hit"], [7, "a3_wind"], [10, "a3_hit"], [22, "a3_hit"], [30, "idle"]]},
