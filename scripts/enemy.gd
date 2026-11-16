@@ -1,4 +1,6 @@
 extends "res://scripts/fighter.gd"
+
+const EnemyAnims := preload("res://scripts/enemy_anims.gd")
 ## Nepřátelé. Útočit smějí jen dva najednou (ostatní čekají opodál), každý útok
 ## má čitelný nápřah (postava zežloutne a nad hlavou se ukáže "!").
 
@@ -35,6 +37,8 @@ func _ready() -> void:
 	hit_w = float(cfg.get("hit_w", 9.0))
 	hit_depth = float(cfg.get("depth", 0.0))
 	cooldown = 30 + randi() % 50
+	if EnemyAnims.SETS.has(kind):
+		setup_anims(EnemyAnims.SETS[kind]["anims"], EnemyAnims.SETS[kind]["k"])
 	slot = randf_range(-40.0, 40.0)
 
 
@@ -114,3 +118,47 @@ func _draw_extra() -> void:
 		draw_rect(Rect2(-2, y, 4, 9), Color("f0d050"))
 		draw_rect(Rect2(-2, y + 11, 4, 3), Color("f0d050"))
 		draw_rect(Rect2(-3, y - 1, 6, 1), Color("1a120e"))
+
+
+# ---------------------------------------------------------------- animace z videa
+
+var blocking := false
+
+
+## Obr se občas ubrání: zvedne kyj a ránu odrazí.
+func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
+	if not anim_tex.is_empty() and anim_tex.has("block") and not knock \
+			and (state == S.IDLE or state == S.WALK) and randf() < 0.4:
+		blocking = true
+		set_state(S.HURT)
+		facing = -dir
+		vel = Vector2(dir * 40.0, 0.0)
+		Sfx.play("hit", 0.55)
+		stage.fx.burst(Vector2(pos.x - dir * 20.0, pos.y - 120.0), Color("fff4c0"), 10, 120.0, 0.25, 0.0, 2.0)
+		return
+	blocking = false
+	super.take_hit(dmg, dir, knock, push)
+
+
+func _anim_pick() -> Array:
+	match state:
+		S.IDLE:
+			return ["idle", int(anim_clock * 6.0), 0.0]
+		S.WALK:
+			return ["walk", int(anim_clock * 12.0), 0.0]
+		S.ATTACK:
+			if move_name == "ogre_charge":
+				return ["walk", int(anim_clock * 24.0), 0.0]
+			return ["attack", _move_frame("attack"), 0.0]
+		S.HURT:
+			if blocking:
+				return ["block", state_t * anim_tex["block"].size() / 16, 0.0]
+			return ["idle", 0, -0.1]
+		S.DOWN:
+			return ["fall", state_t * 2 / 3, 0.0]
+		S.DEAD:
+			return ["fall", 999, 0.0]
+		S.GETUP:
+			var n: int = anim_tex["fall"].size()
+			return ["fall", n - 1 - state_t * n / 18, 0.0]
+	return ["idle", int(anim_clock * 6.0), 0.0]

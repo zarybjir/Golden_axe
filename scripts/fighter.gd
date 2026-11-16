@@ -53,6 +53,8 @@ var rig_tex := {}
 # Snímkové animace z videa (název -> pole textur). Mají přednost před loutkou.
 var anim_tex := {}
 var anim_clock := 0.0
+var anim_set: Dictionary = {}
+var anim_k := 1.0
 
 
 func setup_parts(prefix: String, weapon: String, grip: Vector2) -> void:
@@ -68,10 +70,13 @@ func is_foe() -> bool:
 	return team == 1
 
 
-func setup_anims() -> void:
-	for n in HeroAnims.ANIMS:
+## Snímkové animace (výchozí sada je hrdina; nepřátelé předávají vlastní).
+func setup_anims(aset: Dictionary = HeroAnims.ANIMS, k: float = HeroAnims.K) -> void:
+	anim_set = aset
+	anim_k = k
+	for n in aset:
 		var arr: Array = []
-		for path in HeroAnims.ANIMS[n]["frames"]:
+		for path in aset[n]["frames"]:
 			arr.append(load(path))
 		anim_tex[n] = arr
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -288,7 +293,7 @@ func _anim_pick() -> Array:
 		S.WALK:
 			return ["walk", int(anim_clock * 14.0), 0.0]
 		S.ATTACK:
-			var nm := move_name if HeroAnims.ANIMS.has(move_name) else "atk1"
+			var nm := move_name if anim_set.has(move_name) else "atk1"
 			return [nm, _move_frame(nm), 0.0]
 		S.JUMP:
 			if move_name == "jatk":
@@ -313,7 +318,7 @@ func _anim_pick() -> Array:
 
 ## Snímek útoku tak, aby úder ve videu padl přesně na aktivní snímky útoku ve hře.
 func _move_frame(nm: String) -> int:
-	var a: Dictionary = HeroAnims.ANIMS[nm]
+	var a: Dictionary = anim_set[nm]
 	var n: int = anim_tex[nm].size()
 	var impact: int = a["impact"]
 	if impact < 0:
@@ -331,14 +336,14 @@ func _draw_anim(mod: Color) -> void:
 	var pick := _anim_pick()
 	var nm: String = pick[0]
 	var arr: Array = anim_tex[nm]
-	var a: Dictionary = HeroAnims.ANIMS[nm]
+	var a: Dictionary = anim_set[nm]
 	var i: int = pick[1]
 	if a["loop"]:
 		i = posmod(i, arr.size())
 	else:
 		i = clampi(i, 0, arr.size() - 1)
 	var off: Vector2 = a["offsets"][i]
-	draw_set_transform(Vector2.ZERO, float(pick[2]) * facing, Vector2(facing * HeroAnims.K, HeroAnims.K))
+	draw_set_transform(Vector2.ZERO, float(pick[2]) * facing, Vector2(facing * anim_k, anim_k))
 	draw_texture(arr[i], off, mod)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
