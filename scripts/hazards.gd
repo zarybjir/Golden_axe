@@ -25,14 +25,15 @@ var top_layer: Node2D
 var log_nodes: Array = []
 const LOG_BANDS := 14       # kláda rozdělená na vodorovné pásy kvůli překrývání
 const LOG_TOP := 168.0      # horní konec klády (za cestou)
+const LOG_SLANT := 0.3      # sklon klády (posun x na 1 px hloubky), sedí k šikmému pohledu hry
 var log_w := 36.0
 var log_h := 140.0
 var logp_tex: Texture2D
 
 
-## x klády v dané hloubce (kláda leží rovně přes cestu)
-func log_x(lx: float, _y: float) -> float:
-	return lx
+## x klády v dané hloubce (kláda leží přes cestu lehce našikmo – vzadu víc vpravo)
+func log_x(lx: float, y: float) -> float:
+	return lx + (243.0 - y) * LOG_SLANT
 
 
 func _ready() -> void:
@@ -165,16 +166,19 @@ func _draw_log_band(n: Node2D, k: int, bi: int) -> void:
 	if logp_tex == null:
 		return
 	var lx: float = logs[k]
-	if absf(lx - stage.cam_x) > stage.HALF_W + 80.0:
+	if absf(lx - stage.cam_x) > stage.HALF_W + 120.0:
 		return
 	var tw := float(logp_tex.get_width())
 	var th := float(logp_tex.get_height())
 	var bh := log_h / LOG_BANDS
 	var y0 := LOG_TOP + bh * bi
 	var src := Rect2(0.0, th * bi / LOG_BANDS, tw, th / LOG_BANDS)
+	# zkosení: čím výš (dál), tím víc vpravo; šířka klády zůstává stejná
+	n.draw_set_transform_matrix(Transform2D(Vector2(1.0, 0.0), Vector2(-LOG_SLANT, 1.0), Vector2(243.0 * LOG_SLANT, 0.0)))
 	# stín vedle klády na zemi
 	n.draw_texture_rect_region(logp_tex, Rect2(lx - log_w * 0.5 + 5.0, y0 + 3.0, log_w, bh + 0.4), src, Color(0, 0, 0, 0.4))
 	n.draw_texture_rect_region(logp_tex, Rect2(lx - log_w * 0.5, y0, log_w, bh + 0.4), src, Color(0.86, 0.86, 0.83))
+	n.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 func _draw_top() -> void:

@@ -544,9 +544,22 @@ func in_pool(p: Vector2) -> bool:
 func _draw_puddles() -> void:
 	for pl in _pools(cam_x - HALF_W, cam_x + HALF_W + 200.0):
 		var r: Rect2 = pl[0]
-		if pl[2]:
-			r = Rect2(r.position.x + r.size.x, r.position.y, -r.size.x, r.size.y)
-		draw_texture_rect(pl[1], r, false, Color(0.95, 1.0, 0.95))
+		var c := r.get_center()
+		# tmavá hladina přesně tam, kde se dá utopit (aby bylo nebezpečí vždy vidět)
+		var pts := PackedVector2Array()
+		for k in 24:
+			var an := TAU * k / 24.0
+			pts.append(c + Vector2(cos(an) * r.size.x * 0.4, sin(an) * r.size.y * 0.38))
+		draw_colored_polygon(pts, Color(0.1, 0.13, 0.09, 0.85))
+		# obrázek tůně (převrácení přes transformaci, ne zápornou šířkou)
+		var sx := -1.0 if pl[2] else 1.0
+		draw_set_transform(c, 0.0, Vector2(sx, 1.0))
+		draw_texture_rect(pl[1], Rect2(-r.size * 0.5, r.size), false, Color(0.95, 1.0, 0.95))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		# matný odlesk oblohy na hladině
+		draw_set_transform(c + Vector2(-r.size.x * 0.06, -r.size.y * 0.06), 0.0, Vector2(1.0, 0.32))
+		draw_circle(Vector2.ZERO, r.size.x * 0.2, Color(0.55, 0.6, 0.52, 0.12))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		_draw_water_anim(pl[0])
 	# kruhy na hladině tam, kde se někdo topí
 	for rp in ripples:
