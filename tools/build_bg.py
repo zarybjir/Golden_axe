@@ -17,6 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKY_H = 200      # výška oblohy ve hře (logické px)
 GROUND_H = 150   # výška pásu země
 GROUND_DARK = 0.68  # ztmavení země
+LOGP_H = 150     # výška klády v perspektivě (logické px)
 OBJ_H = 78       # výška největšího objektu v prostřední vrstvě (malé = daleko)
 COLORS = 40
 # Ponurá paleta: bláto, popel, špinavá oliva, zaschlá krev, kost
@@ -25,9 +26,9 @@ GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "7
         "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470",
         "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
-GROUND_CROP = {"swamp": (0.0, 0.32, 1.0, 1.0), "jungle": (0.0, 0.08, 1.0, 1.0)}
-SPLIT_COMPONENTS = {"jungle"}
-SKY_CROP = {"jungle": (0.0, 0.58)}  # z obrázku jen horní část (bez podlahy)
+GROUND_CROP = {"swamp": (0.0, 0.08, 1.0, 1.0), "jungle": (0.0, 0.08, 1.0, 1.0)}
+SPLIT_COMPONENTS = {"jungle", "swamp"}
+SKY_CROP = {"jungle": (0.0, 0.58), "swamp": (0.0, 0.55)}  # z obrázku jen horní část (bez podlahy)
 
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5
@@ -269,6 +270,34 @@ def main(biome):
                 retro(im, (width, max(4, round(im.height * width / im.width)))).save(f"{out}/{prefix}_{n_out}.png")
                 n_out += 1
         extra[f"{biome}_{prefix}"] = n_out
+    # Kláda nakreslená rovnou v perspektivě (průhledné pozadí) -> logp_0.png
+    # + osa klády na zemi: x = ax * y + bx (logické px uvnitř obrázku), polovina tloušťky
+    lpath = f"{src}/grim_{biome}_logp.png"
+    if os.path.exists(lpath):
+        im = Image.open(lpath).convert("RGBA")
+        al = np.asarray(im)[..., 3] > 128
+        al = ndimage.binary_opening(al, iterations=2)
+        ys, xs = np.nonzero(al)
+        im = im.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+        al = al[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        H = LOGP_H
+        k = H / al.shape[0]
+        W = round(al.shape[1] * k)
+        retro(im, (W, H)).save(f"{out}/logp_0.png")
+        rows = [(y, np.nonzero(al[y])[0]) for y in range(al.shape[0])]
+        rows = [(y, r) for y, r in rows if r.size > 0]
+        n = len(rows)
+        sel = rows[int(n * 0.15):int(n * 0.85)]
+        yy = np.array([y for y, r in sel], float) * k
+        cx = np.array([(r.min() + r.max()) / 2 for y, r in sel], float) * k
+        wd = np.array([r.max() - r.min() for y, r in sel], float) * k
+        ax, bx = np.polyfit(yy, cx, 1)
+        half = float(np.median(wd)) * 0.5
+        # zem je pod osou válce: posun o čtvrtinu šířky dolů
+        d = half * 0.5
+        bx = bx - ax * d
+        extra[f"{biome}_logp"] = [round(float(ax), 4), round(float(bx), 2), round(half, 2), W, H]
+        print("logp", extra[f"{biome}_logp"])
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}

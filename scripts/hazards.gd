@@ -9,7 +9,7 @@ const Fighter := preload("res://scripts/fighter.gd")
 const BgData := preload("res://scripts/bg_data.gd")
 const R := BgData.RES
 
-const LOG_HALF := 18.0     # polovina šířky klády (px), kterou nejde projít
+var LOG_HALF := 18.0       # polovina šířky klády (px), kterou nejde projít
 const LOG_JUMP_Z := 26.0   # nad touto výškou se kláda přeskočí (pořádný skok)
 const DART_SPEED := 340.0
 const WARN_TIME := 0.5
@@ -20,37 +20,52 @@ var biome := "jungle"
 var logs: Array = []       # x pozice klád
 var traps: Array = []      # [Vector2 pozice, stav 0=nabito 1=spuštěno 2=dobíjí, čas, směr šipky]
 var darts: Array = []      # [Vector2, směr]
-var log_tex: Array = []
 var plate_tex: Array = []
 var top_layer: Node2D
 var log_nodes: Array = []
-const LOG_SEGS := 8
-const LOG_Y0 := 188.0      # zadní konec klády (za cestou)
-const LOG_Y1 := 300.0      # přední konec (u spodního okraje)
-const LOG_SKEW := 0.6     # šikmá perspektiva: zadní konec je víc vpravo
+const LOG_STRIPS := 18      # kláda rozdělená na svislé pruhy kvůli překrývání
+const LOG_TOP := 166.0      # horní okraj obrázku klády na obrazovce
+var log_ax := -0.6          # osa klády na zemi: x = ax * y + bx (v obrázku)
+var log_bx := 50.0
+var log_w := 100.0
+var log_h := 150.0
+var logp_tex: Texture2D
 
 
 ## x osy klády v dané hloubce y
 func log_x(lx: float, y: float) -> float:
-	return lx + (243.0 - y) * LOG_SKEW
+	return lx + (y - 243.0) * log_ax
+
+
+## hloubka (y na zemi), ve které osa klády prochází daným x
+func log_depth(lx: float, x: float) -> float:
+	return 243.0 + (x - lx) / log_ax
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	z_index = 197          # pasti leží na zemi pod postavami
-	for i in int(BgData.OBJS.get(biome + "_log", 0)):
-		log_tex.append(load("res://art/bg/%s/log_%d.png" % [biome, i]))
 	for i in int(BgData.OBJS.get(biome + "_plate", 0)):
 		plate_tex.append(load("res://art/bg/%s/plate_%d.png" % [biome, i]))
-	# klády: každá rozdělená na úseky podle hloubky, aby se postavy správně
-	# překrývaly (vzadu za kládou, vpředu před ní)
+	var lp: Array = BgData.OBJS.get(biome + "_logp", [])
+	if lp.size() == 5:
+		logp_tex = load("res://art/bg/%s/logp_0.png" % biome)
+		log_ax = lp[0]
+		log_bx = lp[1]
+		LOG_HALF = float(lp[2]) * 0.55
+		log_w = lp[3]
+		log_h = lp[4]
+	# klády: každá rozdělená na svislé pruhy; pruh má hloubku podle osy klády,
+	# takže postava vzadu je za kládou a vpředu před ní
 	for k in logs.size():
-		for sgi in LOG_SEGS:
+		var lx: float = logs[k]
+		var x0 := _log_left(lx)
+		for si in LOG_STRIPS:
 			var n := Node2D.new()
-			var y_mid := LOG_Y0 + (LOG_Y1 - LOG_Y0) * (sgi + 0.5) / LOG_SEGS
-			n.z_index = int(y_mid) + 1
+			var cx := x0 + log_w * (si + 0.5) / LOG_STRIPS
+			n.z_index = clampi(int(log_depth(lx, cx)) + 1, 150, 700)
 			n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-			n.draw.connect(_draw_log_seg.bind(n, k, sgi))
+			n.draw.connect(_draw_log_strip.bind(n, k, si))
 			add_child(n)
 			log_nodes.append(n)
 	# šipky a varování nad vším
@@ -154,32 +169,27 @@ func _draw() -> void:
 		draw_texture_rect(tex, Rect2(pos.x - w * 0.5, pos.y - h * 0.5 + sunk, w, h), false, mod)
 
 
-## Jeden úsek klády: kláda leží přes celou šířku cesty, šikmo do hloubky,
-## vzadu je užší (dál), vpředu širší.
-func _draw_log_seg(n: Node2D, k: int, sgi: int) -> void:
-	if log_tex.is_empty():
+## levý okraj obrázku klády tak, aby osa na zemi procházela lx v hloubce 243
+func _log_left(lx: float) -> float:
+	return lx - (log_ax * (243.0 - LOG_TOP) + log_bx)
+
+
+## Jeden svislý pruh klády (obrázek je už nakreslený v perspektivě).
+func _draw_log_strip(n: Node2D, k: int, si: int) -> void:
+	if logp_tex == null:
 		return
 	var lx: float = logs[k]
 	if absf(lx - stage.cam_x) > stage.HALF_W + 140.0:
 		return
-	var tex: Texture2D = log_tex[k % log_tex.size()]
-	var a := Vector2(log_x(lx, LOG_Y0), LOG_Y0)
-	var b := Vector2(log_x(lx, LOG_Y1), LOG_Y1)
-	var axis := b - a
-	var len := axis.length()
-	var ang := axis.angle()
-	var tw := float(tex.get_width())
-	var th := float(tex.get_height())
-	var t0 := float(sgi) / LOG_SEGS
-	var t1 := float(sgi + 1) / LOG_SEGS
-	var depth := lerpf(0.8, 1.2, (t0 + t1) * 0.5)   # perspektiva
-	var thick := 44.0 * depth
-	var p0 := a + axis * t0
-	n.draw_set_transform(p0, ang, Vector2.ONE)
-	var shade := lerpf(0.72, 0.95, (t0 + t1) * 0.5)
-	n.draw_texture_rect_region(tex, Rect2(0.0, -thick * 0.5, len * (t1 - t0) + 0.6, thick),
-		Rect2(tw * t0, 0.0, tw * (t1 - t0), th), Color(shade, shade, shade * 0.97))
-	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var tw := float(logp_tex.get_width())
+	var th := float(logp_tex.get_height())
+	var x0 := _log_left(lx) + log_w * si / LOG_STRIPS
+	var sw := log_w / LOG_STRIPS
+	# stín pod kládou
+	n.draw_texture_rect_region(logp_tex, Rect2(x0, LOG_TOP + 4.0, sw + 0.4, log_h),
+		Rect2(tw * si / LOG_STRIPS, 0.0, tw / LOG_STRIPS, th), Color(0, 0, 0, 0.35))
+	n.draw_texture_rect_region(logp_tex, Rect2(x0, LOG_TOP, sw + 0.4, log_h),
+		Rect2(tw * si / LOG_STRIPS, 0.0, tw / LOG_STRIPS, th), Color(0.86, 0.86, 0.83))
 
 
 func _draw_top() -> void:
