@@ -167,10 +167,10 @@ func _draw_top() -> void:
 	for d in darts:
 		var dp: Vector2 = d[0]
 		var dir: int = d[1]
-		var y := dp.y - 24.0
-		top_layer.draw_line(Vector2(dp.x - dir * 22.0, y), Vector2(dp.x, y), Color("3a2a1a"), 2.0)
+		var y := dp.y - 30.0
+		top_layer.draw_line(Vector2(dp.x - dir * 60.0, y), Vector2(dp.x - dir * 34.0, y), Color(1, 1, 1, 0.22), 2.0)
+		top_layer.draw_line(Vector2(dp.x - dir * 34.0, y), Vector2(dp.x, y), Color("2a1c10"), 3.0)
 		top_layer.draw_colored_polygon(PackedVector2Array([
-			Vector2(dp.x + dir * 6.0, y), Vector2(dp.x, y - 2.5), Vector2(dp.x, y + 2.5)]), Color("8a8a7a"))
-		top_layer.draw_line(Vector2(dp.x - dir * 22.0, y - 3.0), Vector2(dp.x - dir * 16.0, y), Color("6a2a1a"), 1.5)
-		top_layer.draw_line(Vector2(dp.x - dir * 22.0, y + 3.0), Vector2(dp.x - dir * 16.0, y), Color("6a2a1a"), 1.5)
-		top_layer.draw_line(Vector2(dp.x - dir * 60.0, y), Vector2(dp.x - dir * 24.0, y), Color(1, 1, 1, 0.18), 1.0)
+			Vector2(dp.x + dir * 10.0, y), Vector2(dp.x, y - 4.0), Vector2(dp.x, y + 4.0)]), Color("9a9a88"))
+		top_layer.draw_line(Vector2(dp.x - dir * 34.0, y - 5.0), Vector2(dp.x - dir * 24.0, y), Color("7a2a1a"), 2.0)
+		top_layer.draw_line(Vector2(dp.x - dir * 34.0, y + 5.0), Vector2(dp.x - dir * 24.0, y), Color("7a2a1a"), 2.0)
