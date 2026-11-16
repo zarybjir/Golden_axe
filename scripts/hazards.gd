@@ -23,23 +23,16 @@ var darts: Array = []      # [Vector2, směr]
 var plate_tex: Array = []
 var top_layer: Node2D
 var log_nodes: Array = []
-const LOG_STRIPS := 18      # kláda rozdělená na svislé pruhy kvůli překrývání
-const LOG_TOP := 166.0      # horní okraj obrázku klády na obrazovce
-var log_ax := -0.6          # osa klády na zemi: x = ax * y + bx (v obrázku)
-var log_bx := 50.0
-var log_w := 100.0
-var log_h := 150.0
+const LOG_BANDS := 14       # kláda rozdělená na vodorovné pásy kvůli překrývání
+const LOG_TOP := 168.0      # horní konec klády (za cestou)
+var log_w := 36.0
+var log_h := 140.0
 var logp_tex: Texture2D
 
 
-## x osy klády v dané hloubce y
-func log_x(lx: float, y: float) -> float:
-	return lx + (y - 243.0) * log_ax
-
-
-## hloubka (y na zemi), ve které osa klády prochází daným x
-func log_depth(lx: float, x: float) -> float:
-	return 243.0 + (x - lx) / log_ax
+## x klády v dané hloubce (kláda leží rovně přes cestu)
+func log_x(lx: float, _y: float) -> float:
+	return lx
 
 
 func _ready() -> void:
@@ -48,28 +41,26 @@ func _ready() -> void:
 	for i in int(BgData.OBJS.get(biome + "_plate", 0)):
 		plate_tex.append(load("res://art/bg/%s/plate_%d.png" % [biome, i]))
 	var lp: Array = BgData.OBJS.get(biome + "_logp", [])
-	if lp.size() == 5:
+	if lp.size() == 2:
 		logp_tex = load("res://art/bg/%s/logp_0.png" % biome)
-		log_ax = lp[0]
-		log_bx = lp[1]
-		LOG_HALF = float(lp[2]) * 0.55
-		log_w = lp[3]
-		log_h = lp[4]
-	# klády: každá rozdělená na svislé pruhy; pruh má hloubku podle osy klády,
+		log_h = lp[0]
+		log_w = lp[1]
+		LOG_HALF = log_w * 0.5 + 6.0
+	# klády: každá rozdělená na vodorovné pásy; pás má hloubku podle své výšky,
 	# takže postava vzadu je za kládou a vpředu před ní
 	for k in logs.size():
-		var lx: float = logs[k]
-		var x0 := _log_left(lx)
-		for si in LOG_STRIPS:
+		for bi in LOG_BANDS:
 			var n := Node2D.new()
-			var cx := x0 + log_w * (si + 0.5) / LOG_STRIPS
-			n.z_index = clampi(int(log_depth(lx, cx)) + 1, 150, 700)
+			var yb := LOG_TOP + log_h * (bi + 1.0) / LOG_BANDS
+			n.z_as_relative = false   # absolutní hloubka, stejná jako u postav
+			n.z_index = clampi(int(yb) + 2, 150, 700)
 			n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-			n.draw.connect(_draw_log_strip.bind(n, k, si))
+			n.draw.connect(_draw_log_band.bind(n, k, bi))
 			add_child(n)
 			log_nodes.append(n)
 	# šipky a varování nad vším
 	top_layer = Node2D.new()
+	top_layer.z_as_relative = false
 	top_layer.z_index = 800
 	top_layer.draw.connect(_draw_top)
 	add_child(top_layer)
@@ -169,27 +160,21 @@ func _draw() -> void:
 		draw_texture_rect(tex, Rect2(pos.x - w * 0.5, pos.y - h * 0.5 + sunk, w, h), false, mod)
 
 
-## levý okraj obrázku klády tak, aby osa na zemi procházela lx v hloubce 243
-func _log_left(lx: float) -> float:
-	return lx - (log_ax * (243.0 - LOG_TOP) + log_bx)
-
-
-## Jeden svislý pruh klády (obrázek je už nakreslený v perspektivě).
-func _draw_log_strip(n: Node2D, k: int, si: int) -> void:
+## Jeden vodorovný pás klády.
+func _draw_log_band(n: Node2D, k: int, bi: int) -> void:
 	if logp_tex == null:
 		return
 	var lx: float = logs[k]
-	if absf(lx - stage.cam_x) > stage.HALF_W + 140.0:
+	if absf(lx - stage.cam_x) > stage.HALF_W + 80.0:
 		return
 	var tw := float(logp_tex.get_width())
 	var th := float(logp_tex.get_height())
-	var x0 := _log_left(lx) + log_w * si / LOG_STRIPS
-	var sw := log_w / LOG_STRIPS
-	# stín pod kládou
-	n.draw_texture_rect_region(logp_tex, Rect2(x0, LOG_TOP + 4.0, sw + 0.4, log_h),
-		Rect2(tw * si / LOG_STRIPS, 0.0, tw / LOG_STRIPS, th), Color(0, 0, 0, 0.35))
-	n.draw_texture_rect_region(logp_tex, Rect2(x0, LOG_TOP, sw + 0.4, log_h),
-		Rect2(tw * si / LOG_STRIPS, 0.0, tw / LOG_STRIPS, th), Color(0.86, 0.86, 0.83))
+	var bh := log_h / LOG_BANDS
+	var y0 := LOG_TOP + bh * bi
+	var src := Rect2(0.0, th * bi / LOG_BANDS, tw, th / LOG_BANDS)
+	# stín vedle klády na zemi
+	n.draw_texture_rect_region(logp_tex, Rect2(lx - log_w * 0.5 + 5.0, y0 + 3.0, log_w, bh + 0.4), src, Color(0, 0, 0, 0.4))
+	n.draw_texture_rect_region(logp_tex, Rect2(lx - log_w * 0.5, y0, log_w, bh + 0.4), src, Color(0.86, 0.86, 0.83))
 
 
 func _draw_top() -> void:

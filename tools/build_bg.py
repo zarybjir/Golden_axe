@@ -17,7 +17,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKY_H = 200      # výška oblohy ve hře (logické px)
 GROUND_H = 150   # výška pásu země
 GROUND_DARK = 0.68  # ztmavení země
-LOGP_H = 150     # výška klády v perspektivě (logické px)
+LOGP_H = 140     # délka klády přes cestu (logické px)
+LOGP_WIDEN = 1.5  # kláda je ve hře tlustší než v obrázku
 OBJ_H = 78       # výška největšího objektu v prostřední vrstvě (malé = daleko)
 COLORS = 40
 # Ponurá paleta: bláto, popel, špinavá oliva, zaschlá krev, kost
@@ -98,7 +99,7 @@ def main(biome):
     ga[..., :3] *= GROUND_DARK
     gi = retro(Image.fromarray(ga.astype(np.uint8), "RGBA"), (round(ga.shape[1] * GROUND_H / ga.shape[0]), GROUND_H))
     a = np.asarray(gi).copy()
-    rows = 14 * RES
+    rows = 34 * RES
     a[:rows, :, 3] = (a[:rows, :, 3] * np.linspace(0, 1, rows)[:, None]).astype(np.uint8)
     Image.fromarray(a, "RGBA").save(f"{out}/ground.png")
     # Objekty na zeleném pozadí (může jich být víc listů: _mid, _mid2, _mid3 ...)
@@ -187,13 +188,13 @@ def main(biome):
             mask = (lab[y0:y1, x0:x1] == i)
             crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask * 255).astype(np.uint8)])
             im = Image.fromarray(crop, "RGBA")
-            w = 78 + 16 * (water_n % 3)
-            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.62))))
+            w = 130 + 20 * (water_n % 3)
+            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.72))))
             wa = np.asarray(wim).copy()
             # rozpitý okraj: plynulé zeslábnutí 5 px
             solid = wa[..., 3] > 0
             dist = ndimage.distance_transform_edt(solid)
-            wa[..., 3] = (wa[..., 3] * np.clip(dist / (5 * RES), 0, 1)).astype(np.uint8)
+            wa[..., 3] = (wa[..., 3] * np.clip(dist / (3 * RES), 0, 1)).astype(np.uint8)
             Image.fromarray(wa, "RGBA").save(f"{out}/water_{water_n}.png")
             water_n += 1
     # Vzdálená bažina: pás s tůněmi a rákosím (bez oblohy), měkké boční okraje
@@ -270,34 +271,19 @@ def main(biome):
                 retro(im, (width, max(4, round(im.height * width / im.width)))).save(f"{out}/{prefix}_{n_out}.png")
                 n_out += 1
         extra[f"{biome}_{prefix}"] = n_out
-    # Kláda nakreslená rovnou v perspektivě (průhledné pozadí) -> logp_0.png
-    # + osa klády na zemi: x = ax * y + bx (logické px uvnitř obrázku), polovina tloušťky
+    # Kláda ležící rovně přes cestu (průhledné pozadí, svislá v obrázku) -> logp_0.png
+    # data: [výška, šířka] v logických px
     lpath = f"{src}/grim_{biome}_logp.png"
     if os.path.exists(lpath):
         im = Image.open(lpath).convert("RGBA")
         al = np.asarray(im)[..., 3] > 128
-        al = ndimage.binary_opening(al, iterations=2)
-        ys, xs = np.nonzero(al)
+        ys, xs = np.nonzero(ndimage.binary_opening(al, iterations=2))
         im = im.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
-        al = al[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
         H = LOGP_H
-        k = H / al.shape[0]
-        W = round(al.shape[1] * k)
+        W = round(im.width * H / im.height * LOGP_WIDEN)
         retro(im, (W, H)).save(f"{out}/logp_0.png")
-        rows = [(y, np.nonzero(al[y])[0]) for y in range(al.shape[0])]
-        rows = [(y, r) for y, r in rows if r.size > 0]
-        n = len(rows)
-        sel = rows[int(n * 0.15):int(n * 0.85)]
-        yy = np.array([y for y, r in sel], float) * k
-        cx = np.array([(r.min() + r.max()) / 2 for y, r in sel], float) * k
-        wd = np.array([r.max() - r.min() for y, r in sel], float) * k
-        ax, bx = np.polyfit(yy, cx, 1)
-        half = float(np.median(wd)) * 0.5
-        # zem je pod osou válce: posun o čtvrtinu šířky dolů
-        d = half * 0.5
-        bx = bx - ax * d
-        extra[f"{biome}_logp"] = [round(float(ax), 4), round(float(bx), 2), round(half, 2), W, H]
-        print("logp", extra[f"{biome}_logp"])
+        extra[f"{biome}_logp"] = [H, W]
+        print("logp", H, W)
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}

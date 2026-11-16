@@ -491,17 +491,17 @@ func _pools(x0: float, x1: float) -> Array:
 	var out: Array = []
 	if water_tex.is_empty():
 		return out
-	var step := 260.0
+	var step := 300.0
 	for i in range(int(floorf((x0 - 400.0) / step)), int(ceilf(x1 / step)) + 1):
 		var r1 := float(absi((i * 73856093) ^ 912367) % 1000) / 1000.0
 		var r2 := float(absi((i * 19349663) ^ 4441) % 1000) / 1000.0
-		if r1 < 0.3 or i * step < 260.0:
+		if r1 < 0.3 or i * step < 300.0:
 			continue
 		var tex: Texture2D = water_tex[int(r2 * 997.0) % water_tex.size()]
 		var sc := 1.0
 		var w := tex.get_width() / ParallaxScript.R * sc
 		var h := tex.get_height() / ParallaxScript.R * sc
-		out.append([Rect2(roundf(i * step + r2 * 80.0), roundf(196.0 + r1 * 70.0), w, h), tex, r2 < 0.5])
+		out.append([Rect2(roundf(i * step + r2 * 80.0), roundf(184.0 + (r1 - 0.3) / 0.7 * 52.0), w, h), tex, r2 < 0.5])
 	return out
 
 
@@ -546,7 +546,7 @@ func _draw_puddles() -> void:
 		var r: Rect2 = pl[0]
 		if pl[2]:
 			r = Rect2(r.position.x + r.size.x, r.position.y, -r.size.x, r.size.y)
-		draw_texture_rect(pl[1], r, false, Color(0.78, 0.82, 0.78))
+		draw_texture_rect(pl[1], r, false, Color(0.95, 1.0, 0.95))
 		_draw_water_anim(pl[0])
 	# kruhy na hladině tam, kde se někdo topí
 	for rp in ripples:
@@ -653,9 +653,12 @@ func _draw() -> void:
 		var left := cam_x - HALF_W - 4.0
 		var ww := HALF_W * 2.0 + 8.0
 		var top := 300.0 - h
-		var fa := Color(0.42, 0.42, 0.40, 0.26)
+		# mlha v dálce: plynule přibývá od horního okraje cesty a zase mizí
+		var fa := Color(0.42, 0.42, 0.40, 0.22)
 		var fb := Color(0.42, 0.42, 0.40, 0.0)
-		draw_polygon(PackedVector2Array([Vector2(left, top), Vector2(left + ww, top), Vector2(left + ww, top + 40.0), Vector2(left, top + 40.0)]),
+		draw_polygon(PackedVector2Array([Vector2(left, top - 24.0), Vector2(left + ww, top - 24.0), Vector2(left + ww, top + 18.0), Vector2(left, top + 18.0)]),
+			PackedColorArray([fb, fb, fa, fa]))
+		draw_polygon(PackedVector2Array([Vector2(left, top + 18.0), Vector2(left + ww, top + 18.0), Vector2(left + ww, top + 60.0), Vector2(left, top + 60.0)]),
 			PackedColorArray([fa, fa, fb, fb]))
 		var sa := Color(0.03, 0.02, 0.02, 0.0)
 		var sb := Color(0.03, 0.02, 0.02, 0.4)

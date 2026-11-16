@@ -80,13 +80,14 @@ func _draw() -> void:
 			draw_texture_rect(sky, Rect2(sx, 0.0, sw + 0.5, sh), false)
 			sx += sw
 		# 2) Vzdálená země (perspektivně zploštělá) – na ní stojí vzdálené objekty
-		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, NEAR_BASE_Y + 4.0)
+		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, 236.0)
 		_draw_marsh(left * FAR_SPEED)
 		# 3) Vzdálená řada objektů v mlze
-		_draw_objects(left * FAR_SPEED, FAR_STEP, FAR_BASE_Y, 0.8, Color(0.62, 0.62, 0.64), 11)
+		var big := 1.4 if biome == "swamp" else 1.0
+		_draw_objects(left * FAR_SPEED, FAR_STEP * big, FAR_BASE_Y, 0.8 * big, Color(0.62, 0.62, 0.64), 11)
 		_fog(HORIZON_Y - 26.0, NEAR_BASE_Y - 6.0, 0.30)
 		# 4) Bližší řada objektů
-		_draw_objects(left * MID_SPEED, MID_STEP, NEAR_BASE_Y, 1.5, Color(0.86, 0.84, 0.82), 0)
+		_draw_objects(left * MID_SPEED, MID_STEP * big, NEAR_BASE_Y, 1.5 * big, Color(0.86, 0.84, 0.82), 0)
 		# 5) Nejbližší velké stromy přímo za cestou – přesahují horní okraj obrazu
 		_draw_objects(left * CLOSE_SPEED, CLOSE_STEP, CLOSE_BASE_Y, 3.6, Color(0.62, 0.6, 0.58), 41, true)
 	else:
@@ -100,7 +101,7 @@ func _draw_far_ground(offset: float, y0: float, y1: float) -> void:
 	var w := float(ground.get_width()) / R * 0.7
 	var x := -fposmod(offset, w)
 	while x < get_viewport_rect().size.x:
-		draw_texture_rect(ground, Rect2(roundf(x), y0, w, h), false, Color(0.72, 0.7, 0.68))
+		draw_texture_rect(ground, Rect2(roundf(x), y0, w, h), false, Color(0.8, 0.78, 0.76))
 		x += w
 
 
