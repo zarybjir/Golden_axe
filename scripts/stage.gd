@@ -528,14 +528,20 @@ func ripple(p: Vector2) -> void:
 		ripples.pop_front()
 
 
+## Velikost viditelné hladiny (poloosy jako zlomek rozměru tůně). Topí se jen ten,
+## kdo stojí nohama zřetelně uvnitř hladiny, ne na jejím okraji.
+const POOL_RX := 0.34
+const POOL_RY := 0.32
+
+
 ## Stojí bod (nohy postavy) v hluboké vodě? Kontroluje se vnitřní elipsa tůně.
 func in_pool(p: Vector2) -> bool:
 	for pl in _pools(p.x - 300.0, p.x + 300.0):
 		var r: Rect2 = pl[0]
 		var c := r.get_center()
 		# voda = vnitřek tůně uvnitř bahnitého okraje
-		var dx := (p.x - c.x) / (r.size.x * 0.36)
-		var dy := (p.y - c.y) / (r.size.y * 0.34)
+		var dx := (p.x - c.x) / (r.size.x * POOL_RX * 0.82)
+		var dy := (p.y - c.y) / (r.size.y * POOL_RY * 0.8)
 		if dx * dx + dy * dy < 1.0:
 			return true
 	return false
@@ -547,15 +553,19 @@ func _draw_puddles() -> void:
 		var c := r.get_center()
 		# tmavá hladina přesně tam, kde se dá utopit (aby bylo nebezpečí vždy vidět)
 		var pts := PackedVector2Array()
-		for k in 24:
-			var an := TAU * k / 24.0
-			pts.append(c + Vector2(cos(an) * r.size.x * 0.4, sin(an) * r.size.y * 0.38))
+		for k in 32:
+			var an := TAU * k / 32.0
+			pts.append(c + Vector2(cos(an) * r.size.x * POOL_RX, sin(an) * r.size.y * POOL_RY))
 		draw_colored_polygon(pts, Color(0.1, 0.13, 0.09, 0.85))
 		# obrázek tůně (převrácení přes transformaci, ne zápornou šířkou)
 		var sx := -1.0 if pl[2] else 1.0
 		draw_set_transform(c, 0.0, Vector2(sx, 1.0))
 		draw_texture_rect(pl[1], Rect2(-r.size * 0.5, r.size), false, Color(0.95, 1.0, 0.95))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		# tmavá voda znovu přes obrázek + bahnitý břeh: jasná hranice, kde začíná hloubka
+		draw_colored_polygon(pts, Color(0.07, 0.09, 0.06, 0.55))
+		pts.append(pts[0])
+		draw_polyline(pts, Color(0.36, 0.33, 0.24, 0.9), 1.6, true)
 		# matný odlesk oblohy na hladině
 		draw_set_transform(c + Vector2(-r.size.x * 0.06, -r.size.y * 0.06), 0.0, Vector2(1.0, 0.32))
 		draw_circle(Vector2.ZERO, r.size.x * 0.2, Color(0.55, 0.6, 0.52, 0.12))
