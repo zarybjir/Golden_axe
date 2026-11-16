@@ -20,28 +20,28 @@ const BARRELS := [[300.0, 204.0, "meat"], [640.0, 268.0, "rune"], [1040.0, 212.0
 ## Úrovně za sebou. Poslední vlna s "boss": true úroveň ukončí.
 const STAGES := [
 	{"name": "Močály", "biome": "swamp", "waves": [
-		{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1], ["goblin", 1]]},
-		{"x": 860.0, "enemies": [["rider", 1], ["goblin", -1]]},
-		{"x": 1300.0, "enemies": [["skeleton", 1], ["goblin", -1], ["goblin", 1]]},
-		{"x": 1760.0, "enemies": [["goblin", 1], ["goblin", -1], ["skeleton", 1], ["goblin", -1]], "boss": true},
+		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1]]},
+		{"x": 860.0, "enemies": [["bat", 1], ["bat", -1], ["ghoul", 1]]},
+		{"x": 1300.0, "enemies": [["skeleton", 1], ["ghoul", -1], ["ghoul", 1]]},
+		{"x": 1760.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["skeleton", 1], ["ghoul", -1]], "boss": true},
 	]},
 	{"name": "Hřbitov", "biome": "graveyard", "waves": [
 		{"x": 420.0, "enemies": [["skeleton", 1], ["skeleton", -1]]},
-		{"x": 860.0, "enemies": [["skeleton", 1], ["goblin", -1], ["skeleton", -1]]},
+		{"x": 860.0, "enemies": [["skeleton", 1], ["bat", -1], ["skeleton", -1], ["bat", 1]]},
 		{"x": 1300.0, "enemies": [["rider", 1], ["skeleton", -1], ["skeleton", 1]]},
 		{"x": 1760.0, "enemies": [["ogre", 1], ["skeleton", -1]], "boss": true},
 	]},
 	{"name": "Džungle", "biome": "jungle", "waves": [
-		{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1], ["goblin", 1], ["goblin", -1]]},
+		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1], ["ghoul", -1]]},
 		{"x": 860.0, "enemies": [["rider", 1], ["rider", -1]]},
-		{"x": 1300.0, "enemies": [["skeleton", 1], ["goblin", -1], ["skeleton", -1], ["goblin", 1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["goblin", -1], ["goblin", 1]], "boss": true},
+		{"x": 1300.0, "enemies": [["skeleton", 1], ["ghoul", -1], ["skeleton", -1], ["ghoul", 1]]},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["ghoul", -1], ["ghoul", 1]], "boss": true},
 	]},
 	{"name": "Horský průsmyk", "biome": "mountain", "waves": [
-		{"x": 420.0, "enemies": [["goblin", 1], ["skeleton", -1], ["goblin", 1]]},
-		{"x": 860.0, "enemies": [["rider", 1], ["goblin", -1], ["skeleton", 1]]},
-		{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["goblin", -1]]},
-		{"x": 1760.0, "enemies": [["dragon", 1], ["goblin", -1]], "boss": true},
+		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", 1]]},
+		{"x": 860.0, "enemies": [["rider", 1], ["ghoul", -1], ["skeleton", 1]]},
+		{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["ghoul", -1]]},
+		{"x": 1760.0, "enemies": [["dragon", 1], ["ghoul", -1]], "boss": true},
 	]},
 ]
 

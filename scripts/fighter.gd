@@ -54,6 +54,7 @@ var rig_tex := {}
 var anim_tex := {}
 var anim_clock := 0.0
 var anim_set: Dictionary = {}
+var flying := false     # létající nepřítel (netopýr) – bez gravitace
 var incoming_move := ""  # tah, kterým nás právě zasahují (kvůli krytí)
 var anim_k := 1.0
 
@@ -117,7 +118,7 @@ func physics_step() -> void:
 		invuln -= 1
 	if flash > 0:
 		flash -= 1
-	if state != S.RIDE and (z > 0.0 or vz > 0.0):
+	if state != S.RIDE and not flying and (z > 0.0 or vz > 0.0):
 		vz -= GRAVITY * DT
 		z += vz * DT
 		if z <= 0.0:
