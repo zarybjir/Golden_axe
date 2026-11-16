@@ -54,6 +54,8 @@ var rig_tex := {}
 var anim_tex := {}
 var anim_clock := 0.0
 var anim_set: Dictionary = {}
+var down_len := 40      # jak dlouho leží (snímky)
+var getup_len := 18     # jak dlouho vstává
 var flying := false     # létající nepřítel (netopýr) – bez gravitace
 var incoming_move := ""  # tah, kterým nás právě zasahují (kvůli krytí)
 var anim_k := 1.0
@@ -137,14 +139,14 @@ func physics_step() -> void:
 		S.DOWN:
 			if z <= 0.0:
 				down_t += 1
-				if down_t > 40:
+				if down_t > down_len:
 					if hp <= 0:
 						set_state(S.DEAD)
 					else:
 						set_state(S.GETUP)
 		S.GETUP:
 			invuln = maxi(invuln, 2)
-			if state_t >= 18:
+			if state_t >= getup_len:
 				invuln = 30 if team == 0 else 8
 				set_state(S.IDLE)
 		S.ATTACK:
@@ -306,7 +308,8 @@ func _anim_pick() -> Array:
 			return [nm, _move_frame(nm), 0.0]
 		S.JUMP:
 			if move_name == "jatk":
-				return ["atk1", _move_frame("atk1"), 0.0]
+				# ze skoku plynule navazuje úder sekerou shora
+				return ["atk3", _move_frame("atk3"), 0.0]
 			var n: int = anim_tex["jump"].size()
 			var f := clampf(0.5 - vz / 880.0, 0.0, 1.0)
 			return ["jump", 1 + int(f * float(n - 3)), 0.0]

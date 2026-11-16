@@ -41,7 +41,7 @@ const MOVES := {
 		"keys": [[0, "a1_hit"], [4, "a2_wind"], [6, "a2_hit"], [14, "a2_hit"], [20, "idle"]]},
 	"atk3": {"len": 30, "hit": [10, 12], "cancel": 20, "dmg": 14, "reach": 40, "push": 0, "knock": true, "next": "",
 		"keys": [[0, "a2_hit"], [7, "a3_wind"], [10, "a3_hit"], [22, "a3_hit"], [30, "idle"]]},
-	"jatk": {"len": 30, "hit": [3, 14], "cancel": 99, "dmg": 12, "reach": 34, "push": 0, "knock": true, "next": "",
+	"jatk": {"len": 30, "hit": [6, 16], "cancel": 99, "dmg": 12, "reach": 34, "push": 0, "knock": true, "next": "",
 		"keys": [[0, "jump"], [3, "jatk"], [30, "jatk"]]},
 	"ghoul_atk": {"len": 40, "hit": [20, 23], "cancel": 99, "dmg": 8, "reach": 30, "push": 60, "knock": false, "next": "",
 		"keys": [[0, "idle"], [16, "a2_wind"], [20, "a2_hit"], [30, "a2_hit"], [40, "idle"]]},
