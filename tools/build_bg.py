@@ -19,19 +19,41 @@ GROUND_H = 150   # výška pásu země
 GROUND_DARK = 0.68  # ztmavení země
 OBJ_H = 78       # výška největšího objektu v prostřední vrstvě (malé = daleko)
 COLORS = 40
+# Ponurá paleta: bláto, popel, špinavá oliva, zaschlá krev, kost
+GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "75624f",
+        "222620", "30352c", "40463a", "55594f", "36181a", "4e201c", "642a22", "8c7f68"]
+# výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
+GROUND_CROP = {"swamp": (0.30, 0.18, 0.74, 1.0)}
+
+
+BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5
+
+
+def grim(rgb):
+    """Převede na ponurou paletu s hrubým rastrem."""
+    pal = np.array([[int(c[i:i + 2], 16) for i in (0, 2, 4)] for c in GRIM], float)
+    a = rgb.astype(float)
+    # ztlumit sytost a jas
+    lum = a.mean(axis=2, keepdims=True)
+    a = lum + (a - lum) * 0.45
+    a *= 0.8
+    h, w = a.shape[:2]
+    a += BAYER[np.arange(h)[:, None] % 4, np.arange(w)[None, :] % 4][..., None] * 22.0
+    d = ((a[:, :, None, :] - pal[None, None, :, :]) ** 2).sum(axis=3)
+    return pal[d.argmin(axis=2)].astype(np.uint8)
 
 
 def retro(im, size):
-    """Zmenší na cílovou velikost a omezí paletu (bez rozmazání)."""
+    """Zmenší na cílovou velikost a převede na ponurou paletu (bez rozmazání)."""
     im = im.convert("RGBA")
     small = im.resize(size, Image.BOX)
-    rgb = small.convert("RGB").quantize(COLORS, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert("RGB")
+    rgb = Image.fromarray(grim(np.asarray(small.convert("RGB"))))
     a = np.asarray(small)[..., 3]
     a = np.where(a > 128, 255, 0).astype(np.uint8)
     return Image.fromarray(np.dstack([np.asarray(rgb), a]), "RGBA")
 
 
-def seamless(arr, blend=200):
+def seamless(arr, blend=120):
     w = arr.shape[1]
     out = arr[:, : w - blend].copy()
     t = np.linspace(0, 1, blend)[None, :, None]
@@ -49,7 +71,8 @@ def main(biome):
     retro(sky, (round(sky.width * SKY_H / sky.height), SKY_H)).save(f"{out}/sky.png")
     # Zem – ořez horního okraje, bezešvá, měkký přechod nahoře
     g = Image.open(f"{src}/grim_{biome}_ground.png").convert("RGBA")
-    g = g.crop((0, int(g.height * 0.08), g.width, g.height))
+    c = GROUND_CROP.get(biome, (0.0, 0.08, 1.0, 1.0))
+    g = g.crop((int(g.width * c[0]), int(g.height * c[1]), int(g.width * c[2]), int(g.height * c[3])))
     ga = seamless(np.asarray(g).astype(float))
     ga[..., :3] *= GROUND_DARK
     gi = retro(Image.fromarray(ga.astype(np.uint8), "RGBA"), (round(ga.shape[1] * GROUND_H / ga.shape[0]), GROUND_H))

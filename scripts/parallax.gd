@@ -58,7 +58,7 @@ func _draw() -> void:
 			draw_texture(sky, Vector2(roundf(sx), 0.0))
 			sx += sw
 		# Vzdálené objekty: menší, ztmavlé a zahalené do oparu
-		_draw_objects(left * MID_SPEED, MID_STEP, 156.0, 1.0, Color(0.55, 0.36, 0.38), 0)
+		_draw_objects(left * MID_SPEED, MID_STEP, 156.0, 1.0, Color(0.72, 0.7, 0.68), 0)
 	else:
 		_draw_objects(left * FRONT_SPEED, FRONT_STEP, size.y + 18.0, 1.5, Color(0.06, 0.04, 0.05, 0.92), 7)
 
