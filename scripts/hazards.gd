@@ -10,7 +10,7 @@ const BgData := preload("res://scripts/bg_data.gd")
 const R := BgData.RES
 
 const LOG_HALF := 13.0     # polovina šířky klády (px), kterou nejde projít
-const LOG_JUMP_Z := 16.0   # nad touto výškou se kláda přeskočí
+const LOG_JUMP_Z := 26.0   # nad touto výškou se kláda přeskočí (pořádný skok)
 const DART_SPEED := 340.0
 const WARN_TIME := 0.5
 const REARM := 3.0
@@ -23,6 +23,16 @@ var darts: Array = []      # [Vector2, směr]
 var log_tex: Array = []
 var plate_tex: Array = []
 var top_layer: Node2D
+var log_nodes: Array = []
+const LOG_SEGS := 8
+const LOG_Y0 := 188.0      # zadní konec klády (za cestou)
+const LOG_Y1 := 300.0      # přední konec (u spodního okraje)
+const LOG_SKEW := 0.34     # šikmá perspektiva: zadní konec je víc vpravo
+
+
+## x osy klády v dané hloubce y
+func log_x(lx: float, y: float) -> float:
+	return lx + (243.0 - y) * LOG_SKEW
 
 
 func _ready() -> void:
@@ -32,13 +42,17 @@ func _ready() -> void:
 		log_tex.append(load("res://art/bg/%s/log_%d.png" % [biome, i]))
 	for i in int(BgData.OBJS.get(biome + "_plate", 0)):
 		plate_tex.append(load("res://art/bg/%s/plate_%d.png" % [biome, i]))
-	# klády: každá svůj uzel, řazený podle hloubky středu (postavy vpředu/vzadu)
+	# klády: každá rozdělená na úseky podle hloubky, aby se postavy správně
+	# překrývaly (vzadu za kládou, vpředu před ní)
 	for k in logs.size():
-		var n := Node2D.new()
-		n.z_index = 241
-		n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		n.draw.connect(_draw_log.bind(n, k))
-		add_child(n)
+		for sgi in LOG_SEGS:
+			var n := Node2D.new()
+			var y_mid := LOG_Y0 + (LOG_Y1 - LOG_Y0) * (sgi + 0.5) / LOG_SEGS
+			n.z_index = int(y_mid) + 1
+			n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+			n.draw.connect(_draw_log_seg.bind(n, k, sgi))
+			add_child(n)
+			log_nodes.append(n)
 	# šipky a varování nad vším
 	top_layer = Node2D.new()
 	top_layer.z_index = 800
@@ -54,12 +68,15 @@ func step(prev_x: float) -> void:
 	_update_darts()
 	queue_redraw()
 	top_layer.queue_redraw()
+	for n in log_nodes:
+		n.queue_redraw()
 
 
 func _block_logs(p, prev_x: float) -> void:
 	if p.z >= LOG_JUMP_Z or p.drown_t > 0:
 		return
-	for lx in logs:
+	for l in logs:
+		var lx: float = log_x(l, p.pos.y)
 		var inside: bool = absf(p.pos.x - lx) < LOG_HALF
 		var crossed: bool = (prev_x - lx) * (p.pos.x - lx) < 0.0
 		if inside or crossed:
@@ -137,20 +154,31 @@ func _draw() -> void:
 		draw_texture_rect(tex, Rect2(pos.x - w * 0.5, pos.y - h * 0.5 + sunk, w, h), false, mod)
 
 
-func _draw_log(n: Node2D, k: int) -> void:
+## Jeden úsek klády: kláda leží přes celou šířku cesty, šikmo do hloubky,
+## vzadu je užší (dál), vpředu širší.
+func _draw_log_seg(n: Node2D, k: int, sgi: int) -> void:
 	if log_tex.is_empty():
 		return
 	var lx: float = logs[k]
-	if absf(lx - stage.cam_x) > stage.HALF_W + 120.0:
+	if absf(lx - stage.cam_x) > stage.HALF_W + 140.0:
 		return
 	var tex: Texture2D = log_tex[k % log_tex.size()]
-	var len := 150.0
-	var sc := len / (tex.get_width() / R)
-	var th := tex.get_height() / R * sc * 0.8
-	# kláda leží šikmo přes celou šířku cesty (od zadního okraje k přednímu)
-	# leží šikmo – zadní konec vpravo nahoře, přední vlevo dole
-	n.draw_set_transform(Vector2(lx, 243.0), -0.72, Vector2.ONE)
-	n.draw_texture_rect(tex, Rect2(-len * 0.5, -th * 0.5, len, th), false, Color(0.82, 0.8, 0.78))
+	var a := Vector2(log_x(lx, LOG_Y0), LOG_Y0)
+	var b := Vector2(log_x(lx, LOG_Y1), LOG_Y1)
+	var axis := b - a
+	var len := axis.length()
+	var ang := axis.angle()
+	var tw := float(tex.get_width())
+	var th := float(tex.get_height())
+	var t0 := float(sgi) / LOG_SEGS
+	var t1 := float(sgi + 1) / LOG_SEGS
+	var depth := lerpf(0.8, 1.2, (t0 + t1) * 0.5)   # perspektiva
+	var thick := 26.0 * depth
+	var p0 := a + axis * t0
+	n.draw_set_transform(p0, ang, Vector2.ONE)
+	var shade := lerpf(0.6, 0.85, (t0 + t1) * 0.5)
+	n.draw_texture_rect_region(tex, Rect2(0.0, -thick * 0.5, len * (t1 - t0) + 0.6, thick),
+		Rect2(tw * t0, 0.0, tw * (t1 - t0), th), Color(shade, shade, shade * 0.97))
 	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

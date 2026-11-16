@@ -25,7 +25,9 @@ GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "7
         "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470",
         "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
-GROUND_CROP = {"swamp": (0.0, 0.32, 1.0, 1.0), "jungle": (0.0, 0.5, 1.0, 1.0)}
+GROUND_CROP = {"swamp": (0.0, 0.32, 1.0, 1.0), "jungle": (0.0, 0.08, 1.0, 1.0)}
+SPLIT_COMPONENTS = {"jungle"}
+SKY_CROP = {"jungle": (0.0, 0.58)}  # z obrázku jen horní část (bez podlahy)
 
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5
@@ -80,7 +82,11 @@ def main(biome):
     out = os.path.join(ROOT, "art/bg", biome)
     os.makedirs(out, exist_ok=True)
     # Obloha – bezešvá smyčka
-    sky = np.asarray(Image.open(f"{src}/grim_{biome}_sky.png").convert("RGBA")).astype(float)
+    sky_im = Image.open(f"{src}/grim_{biome}_sky.png").convert("RGBA")
+    sc = SKY_CROP.get(biome)
+    if sc:
+        sky_im = sky_im.crop((0, int(sky_im.height * sc[0]), sky_im.width, int(sky_im.height * sc[1])))
+    sky = np.asarray(sky_im).astype(float)
     sky = Image.fromarray(seamless(sky).astype(np.uint8), "RGBA")
     retro(sky, (round(sky.width * SKY_H / sky.height), SKY_H)).save(f"{out}/sky.png")
     # Zem – ořez horního okraje, bezešvá, měkký přechod nahoře
@@ -108,10 +114,20 @@ def main(biome):
         fg = ndimage.binary_opening(~green, iterations=2)
         # Objekty se často dotýkají u země – dělíme podle svislých mezer
         # v horních 80 % jejich výšky (kde se nedotýkají).
-        ys_all = np.nonzero(fg.any(axis=1))[0]
+        objs = []
+        if biome in SPLIT_COMPONENTS:
+            # objekty z průhledného pozadí: každý souvislý tvar zvlášť
+            lab, n = ndimage.label(ndimage.binary_dilation(fg, iterations=2))
+            for i in range(1, n + 1):
+                keep = (lab == i) & fg
+                if keep.sum() < 3000:
+                    continue
+                yy, xx = np.nonzero(keep)
+                objs.append((xx.min(), yy.min(), xx.max() + 1, yy.max() + 1, keep))
+            fg = np.zeros_like(fg)
+        ys_all = np.nonzero(fg.any(axis=1))[0] if fg.any() else np.array([0, 1])
         cut_y = int(ys_all.min() + (ys_all.max() - ys_all.min()) * 0.8)
         cols = fg[:cut_y].any(axis=0)
-        objs = []
         x = 0
         W = fg.shape[1]
         while x < W:
@@ -242,7 +258,7 @@ def main(biome):
             m = m.copy()
             m[..., 1] = np.minimum(m[..., 1], np.maximum(m[..., 0], m[..., 2]) + 8)
             sizes = ndimage.sum(fg, lab, range(n + 1))
-            for i in sorted(range(1, n + 1), key=lambda k: -sizes[k])[:4]:
+            for i in sorted(range(1, n + 1), key=lambda k: -sizes[k])[:2]:
                 if sizes[i] < 5000:
                     continue
                 mask = ndimage.binary_erosion((lab == i) & fg, iterations=1)

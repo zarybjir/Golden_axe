@@ -13,7 +13,7 @@ const KINDS := {
 	"spider": {"hp": 30, "range": 56.0, "speed": Vector2(78, 46), "reach": 20.0, "attack": "spider_stab", "cool": 44,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 150,
 		"sprite": "pavouk", "h": 64.0, "hit_w": 16.0},
-	"vine": {"hp": 70, "range": 190.0, "speed": Vector2(22, 16), "reach": 20.0, "attack": "vine_lash", "cool": 80,
+	"vine": {"hp": 70, "range": 140.0, "speed": Vector2(22, 16), "reach": 20.0, "attack": "vine_lash", "cool": 80,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 250,
 		"sprite": "lianovec", "h": 124.0, "hit_w": 12.0},
 	"native": {"hp": 22, "range": 60.0, "speed": Vector2(130, 76), "reach": 20.0, "attack": "native_jab", "cool": 26,
@@ -120,6 +120,11 @@ func _ai() -> void:
 		if kind == "ogre" and cooldown <= 0 and absf(dy) < 12.0 and absf(dx) > 130.0 and absf(dx) < 260.0:
 			start_move("ogre_charge")
 			Sfx.play("roar")
+			return
+		# liánovec útočí, jen když je celý na obrazovce
+		var on_screen := absf(pos.x - stage.cam_x) < stage.HALF_W - 40.0
+		if kind == "vine" and not on_screen:
+			_walk_to(Vector2(stage.cam_x + signf(pos.x - stage.cam_x) * (stage.HALF_W - 60.0), p.pos.y))
 			return
 		if absf(dx) <= reach and absf(dy) <= 10.0 and cooldown <= 0:
 			start_move(cfg["attack"])
