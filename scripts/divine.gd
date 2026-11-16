@@ -120,7 +120,7 @@ func _draw_dragon() -> void:
 		# oheň z tlamy šikmo dolů před hlavou, za postavami
 		if t > 0.25 and t < FLY_TIME:
 			var flick := 1.0 + 0.08 * sin(t * 50.0)
-			var mouth := hp + dir * 70.0 + nrm * 18.0
+			var mouth := hp + dir * 70.0 + nrm * 26.0
 			var ang := 0.62   # oheň šikmo dolů na bojiště
 			var fl := 330.0 * flick
 			var fh := 170.0 * flick
@@ -129,19 +129,18 @@ func _draw_dragon() -> void:
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
 	# tělo – články podél dráhy za hlavou, vlní se
-	var bw := float(body.get_width()) * 140.0 / float(body.get_height())
+	var bw := float(body.get_width()) * 120.0 / float(body.get_height())
 	var seg := bw * 0.55
 	for k in range(14, -1, -1):
-		var back := 95.0 + seg * k
+		var back := 150.0 + seg * k
 		var wob := sin(k * 0.9 - t * 7.0) * 12.0
 		var c := hp - dir * back + nrm * wob
 		var rot := DIVE + cos(k * 0.9 - t * 7.0) * 0.08
 		draw_set_transform(c, rot, Vector2.ONE)
-		draw_texture_rect(body, Rect2(-bw * 0.5, -70.0 + 14.0, bw, 140.0), false, Color(1, 1, 1, fade))
+		draw_texture_rect(body, Rect2(-bw * 0.5, -60.0 + 6.0, bw, 120.0), false, Color(1, 1, 1, fade))
 	# hlava – skloněná ve směru letu
 	var hh := 170.0
 	var hw := head.get_width() * hh / head.get_height()
-	# obrázek hlavy má čumák skloněný dolů – natočíme ji, aby mířila ve směru letu
-	draw_set_transform(hp, DIVE - 0.3, Vector2.ONE)
-	draw_texture_rect(head, Rect2(-hw * 0.45, -hh * 0.5, hw, hh), false, Color(1, 1, 1, 0.95 * fade))
+	draw_set_transform(hp, DIVE, Vector2.ONE)
+	draw_texture_rect(head, Rect2(-hw * 0.7, -hh * 0.5, hw, hh), false, Color(1, 1, 1, fade))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
