@@ -11,6 +11,7 @@ enum State { TITLE, PLAYING, PAUSED, RESULTS }
 
 var state := State.TITLE
 var stage: StageScript = null
+var stage_index := 0
 var world: Node
 var hud: HudScript
 var ui_layer: CanvasLayer
@@ -93,6 +94,19 @@ func show_title() -> void:
 
 
 func start_game() -> void:
+	start_stage(0)
+
+
+func restart_stage() -> void:
+	start_stage(stage_index)
+
+
+func next_stage() -> void:
+	start_stage(stage_index + 1)
+
+
+func start_stage(index: int) -> void:
+	stage_index = index
 	_close_menu()
 	_clear_stage()
 	if title_bg != null:
@@ -100,6 +114,7 @@ func start_game() -> void:
 		title_bg = null
 	get_tree().paused = false
 	stage = StageScript.new()
+	stage.stage_index = index
 	stage.completed.connect(_on_completed)
 	world.add_child(stage)
 	hud.stage = stage
@@ -114,7 +129,7 @@ func pause() -> void:
 	Sfx.play("select")
 	_show_menu("Pauza", "", [
 		["Pokračovat", resume],
-		["Začít znovu", start_game],
+		["Začít úroveň znovu", restart_stage],
 		["Hlavní menu", show_title],
 		["Ukončit hru", quit_game],
 	])
@@ -132,12 +147,18 @@ func _on_completed(stats: Dictionary) -> void:
 	state = State.RESULTS
 	get_tree().paused = true
 	var secs := int(stats["time"])
-	var text := "Skóre: %d\nPoražení nepřátelé: %d\nČas: %d:%02d\nPorážky: %d\n\nDalší úrovně brzy!" % [
+	var text := "Skóre: %d\nPoražení nepřátelé: %d\nČas: %d:%02d\nPorážky: %d" % [
 		stats["score"], stats["kills"], secs / 60, secs % 60, stats["deaths"]]
-	_show_menu("Vesnice zachráněna!", text, [
-		["Hrát znovu", start_game],
-		["Hlavní menu", show_title],
-	])
+	var items: Array = []
+	var title := "Úroveň dokončena!"
+	if stage_index + 1 < StageScript.STAGES.size():
+		items.append(["Další úroveň", next_stage])
+	else:
+		title = "Drak poražen!"
+		text += "\n\nVšechny úrovně dokončeny!"
+	items.append(["Hrát úroveň znovu", restart_stage])
+	items.append(["Hlavní menu", show_title])
+	_show_menu(title, text, items)
 
 
 func quit_game() -> void:
@@ -255,7 +276,7 @@ func _smoke(delta: float) -> void:
 				smoke_step = 4
 		4:
 			if smoke_time > 9.5:
-				resume()
+				start_stage(3)
 				stage.debug_jump_to_wave(1)
 				smoke_step = 5
 		5:
@@ -357,10 +378,19 @@ func _take_shots() -> void:
 	await _wait(0.12)
 	await _tap("attack")
 	await _wait(0.12)
-	_save_shot("2_boj")
+	_save_shot("2_mocal")
+	start_stage(1)
+	stage.debug_jump_to_wave(0)
+	await _wait(2.6)
+	_save_shot("2b_hrbitov")
+	start_stage(2)
+	stage.debug_jump_to_wave(0)
+	await _wait(2.6)
+	_save_shot("2c_dzungle")
+	start_stage(3)
 	stage.debug_jump_to_wave(1)
 	await _wait(2.6)
-	_save_shot("3_jezdec")
+	_save_shot("3_hora_jezdec")
 	var b := _beast()
 	if b != null:
 		if b.rider != null:

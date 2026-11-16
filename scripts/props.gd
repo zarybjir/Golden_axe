@@ -14,6 +14,10 @@ var t := 0.0
 var broken := false
 
 
+func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
 func alive() -> bool:
 	return not broken
 

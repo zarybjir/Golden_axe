@@ -25,6 +25,7 @@ var cfg := {"score": 5000}
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if kind == "beast":
 		prefix = "beast"
 		wings = false

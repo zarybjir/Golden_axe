@@ -2,6 +2,16 @@ extends Node2D
 ## Pozadí s paralaxou: obloha při západu, hory, jehličnaté lesy.
 
 var t := 0.0
+## Malované pozadí prostředí (art/bg/<biome>_far.webp); prázdné = kreslené pozadí.
+var biome := ""
+var level_len := 2000.0
+var far_tex: Texture2D = null
+
+
+func _ready() -> void:
+	if biome != "":
+		far_tex = load("res://art/bg/%s_far.webp" % biome)
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func _process(delta: float) -> void:
@@ -10,6 +20,9 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if far_tex != null:
+		_draw_far()
+		return
 	var size := get_viewport_rect().size
 	var cx := t * 20.0
 	var cam := get_viewport().get_camera_2d()
@@ -62,3 +75,19 @@ func _forest(off: float, base: float, tree_h: float, col: Color, spacing: float)
 				Vector2(cx, top), Vector2(cx - w, top + h * 0.42), Vector2(cx + w, top + h * 0.42)]), col)
 		x += spacing
 		i += 1
+
+
+func _draw_far() -> void:
+	var size := get_viewport_rect().size
+	var cam := get_viewport().get_camera_2d()
+	var left := 0.0
+	if cam != null:
+		left = cam.get_screen_center_position().x - size.x * 0.5
+	# Obrázek pokryje horní část obrazu; posouvá se pomaleji (paralaxa) tak,
+	# aby právě vyšel na celou délku úrovně.
+	var h := 236.0
+	var w := float(far_tex.get_width()) * h / float(far_tex.get_height())
+	var factor := clampf((w - size.x) / maxf(level_len - size.x, 1.0), 0.0, 1.0)
+	var x := -left * factor
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.05, 0.07))
+	draw_texture_rect(far_tex, Rect2(x, 0.0, w, h), false)

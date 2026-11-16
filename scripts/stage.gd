@@ -14,14 +14,40 @@ const Fighter := preload("res://scripts/fighter.gd")
 const LEVEL_LEN := 2000.0
 const HALF_W := 240.0
 const MAX_TOKENS := 2
-const WAVES := [
-	{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1], ["goblin", 1]]},
-	{"x": 860.0, "enemies": [["rider", 1], ["goblin", -1], ["skeleton", 1]]},
-	{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["goblin", -1]]},
-	{"x": 1760.0, "enemies": [["dragon", 1], ["goblin", -1]], "boss": true},
-]
 const BARRELS := [[300.0, 204.0, "meat"], [640.0, 268.0, "rune"], [1040.0, 212.0, "rune"],
 	[1460.0, 262.0, "meat"], [1560.0, 206.0, "rune"]]
+## Úrovně za sebou. Poslední vlna s "boss": true úroveň ukončí.
+const STAGES := [
+	{"name": "Močály", "biome": "swamp", "waves": [
+		{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1], ["goblin", 1]]},
+		{"x": 860.0, "enemies": [["rider", 1], ["goblin", -1]]},
+		{"x": 1300.0, "enemies": [["skeleton", 1], ["goblin", -1], ["goblin", 1]]},
+		{"x": 1760.0, "enemies": [["goblin", 1], ["goblin", -1], ["skeleton", 1], ["goblin", -1]], "boss": true},
+	]},
+	{"name": "Hřbitov", "biome": "graveyard", "waves": [
+		{"x": 420.0, "enemies": [["skeleton", 1], ["skeleton", -1]]},
+		{"x": 860.0, "enemies": [["skeleton", 1], ["goblin", -1], ["skeleton", -1]]},
+		{"x": 1300.0, "enemies": [["rider", 1], ["skeleton", -1], ["skeleton", 1]]},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["skeleton", -1]], "boss": true},
+	]},
+	{"name": "Džungle", "biome": "jungle", "waves": [
+		{"x": 420.0, "enemies": [["goblin", 1], ["goblin", -1], ["goblin", 1], ["goblin", -1]]},
+		{"x": 860.0, "enemies": [["rider", 1], ["rider", -1]]},
+		{"x": 1300.0, "enemies": [["skeleton", 1], ["goblin", -1], ["skeleton", -1], ["goblin", 1]]},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["goblin", -1], ["goblin", 1]], "boss": true},
+	]},
+	{"name": "Horský průsmyk", "biome": "mountain", "waves": [
+		{"x": 420.0, "enemies": [["goblin", 1], ["skeleton", -1], ["goblin", 1]]},
+		{"x": 860.0, "enemies": [["rider", 1], ["goblin", -1], ["skeleton", 1]]},
+		{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["goblin", -1]]},
+		{"x": 1760.0, "enemies": [["dragon", 1], ["goblin", -1]], "boss": true},
+	]},
+]
+
+var stage_index := 0
+var waves: Array = []
+var biome := ""
+var ground_tex: Texture2D = null
 
 var player: PlayerScript
 var fighters: Array = []
@@ -48,10 +74,18 @@ var finished := false
 
 
 func _ready() -> void:
+	var st: Dictionary = STAGES[stage_index]
+	waves = st["waves"]
+	biome = st["biome"]
+	ground_tex = load("res://art/bg/%s_ground.webp" % biome)
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var bg_layer := CanvasLayer.new()
 	bg_layer.layer = -10
 	add_child(bg_layer)
-	bg_layer.add_child(BackgroundScript.new())
+	var bg := BackgroundScript.new()
+	bg.biome = biome
+	bg.level_len = LEVEL_LEN
+	bg_layer.add_child(bg)
 
 	cam = Camera2D.new()
 	add_child(cam)
@@ -76,6 +110,7 @@ func _ready() -> void:
 	fx.z_index = 900
 	add_child(fx)
 	_update_camera()
+	popup(String(st["name"]).to_upper(), Vector2(cam_x - 6, 120), Color("f0d050"))
 
 
 func _physics_process(_delta: float) -> void:
@@ -124,7 +159,7 @@ func _camera_logic() -> void:
 	if locked:
 		if _living_enemies() == 0:
 			locked = false
-			var was_boss: bool = WAVES[wave_i].get("boss", false)
+			var was_boss: bool = waves[wave_i].get("boss", false)
 			wave_i += 1
 			if was_boss:
 				finish()
@@ -137,13 +172,13 @@ func _camera_logic() -> void:
 		cam_x = minf(cam_x + maxf((target - cam_x) * 0.12, 0.5), target)
 		if cam_x > player.pos.x - 60.0:
 			pass
-	if go_sign and cam_x > (WAVES[wave_i - 1]["x"] as float) + 80.0:
+	if go_sign and cam_x > (waves[wave_i - 1]["x"] as float) + 80.0:
 		go_sign = false
-	if wave_i < WAVES.size() and cam_x >= float(WAVES[wave_i]["x"]):
-		cam_x = float(WAVES[wave_i]["x"])
+	if wave_i < waves.size() and cam_x >= float(waves[wave_i]["x"]):
+		cam_x = float(waves[wave_i]["x"])
 		locked = true
 		go_sign = false
-		_spawn_wave(WAVES[wave_i])
+		_spawn_wave(waves[wave_i])
 
 
 func _spawn_wave(w: Dictionary) -> void:
@@ -223,7 +258,7 @@ func debug_jump_to_wave(index: int) -> void:
 	tokens.clear()
 	locked = false
 	wave_i = index
-	cam_x = float(WAVES[index]["x"]) - 1.0
+	cam_x = float(waves[index]["x"]) - 1.0
 	player.pos = Vector2(cam_x + 10.0, 236.0)
 
 
@@ -415,26 +450,12 @@ func finish() -> void:
 # ---------------------------------------------------------------- kreslení země
 
 func _draw() -> void:
-	var road: Texture2D = Art.road
-	var start := floorf((cam_x - HALF_W - 70.0) / 64.0) * 64.0
-	var x := start
-	while x < cam_x + HALF_W + 64.0:
-		draw_texture(road, Vector2(x, 168))
-		x += 64.0
-	# Kůly palisády vesnice na konci úrovně
-	var px := 1600.0
-	while px < LEVEL_LEN + 40.0:
-		if absf(px - cam_x) < HALF_W + 20.0:
-			var h := 104.0 + float(int(px) % 3) * 6.0
-			draw_rect(Rect2(px, 172 - h, 16, h), Color("6a4422"))
-			draw_rect(Rect2(px + 3, 172 - h, 4, h), Color("8a5a30"))
-			draw_colored_polygon(PackedVector2Array([Vector2(px, 172 - h), Vector2(px + 8, 160 - h), Vector2(px + 16, 172 - h)]), Color("6a4422"))
-			draw_rect(Rect2(px, 172 - h, 1, h), Color("1a120e"))
-			draw_rect(Rect2(px, 172 - h * 0.7, 16, 4), Color("4a2c14"))
-		px += 17.0
-	# Patníky u cesty
-	for sx in [180.0, 560.0, 980.0, 1380.0]:
-		if absf(sx - cam_x) < HALF_W + 20.0:
-			draw_rect(Rect2(sx, 144, 14, 32), Color("8a8a96"))
-			draw_rect(Rect2(sx, 144, 14, 3), Color("b8b8c4"))
-			draw_rect(Rect2(sx + 10, 147, 4, 29), Color("55555f"))
+	# Malovaná zem: opakující se pás, posouvá se spolu s postavami.
+	if ground_tex == null:
+		return
+	var h := 142.0
+	var w := float(ground_tex.get_width()) * h / float(ground_tex.get_height())
+	var x := floorf((cam_x - HALF_W - 10.0) / w) * w
+	while x < cam_x + HALF_W + 10.0:
+		draw_texture_rect(ground_tex, Rect2(x, 300.0 - h, w + 1.0, h), false)
+		x += w

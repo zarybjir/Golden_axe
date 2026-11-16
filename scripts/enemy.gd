@@ -23,6 +23,7 @@ var dead_t := 0
 
 func _ready() -> void:
 	team = 1
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	cfg = KINDS[kind]
 	max_hp = int(cfg["hp"])
 	hp = max_hp
