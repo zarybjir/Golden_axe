@@ -171,7 +171,7 @@ def main(biome):
             crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask * 255).astype(np.uint8)])
             im = Image.fromarray(crop, "RGBA")
             w = 120 + 60 * (water_n % 3)
-            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.42))))
+            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.5))))
             wa = np.asarray(wim).copy()
             # rozpitý okraj: plynulé zeslábnutí 5 px
             solid = wa[..., 3] > 0
@@ -195,6 +195,37 @@ def main(biome):
         a[..., 3] *= top * side
         a = a.astype(np.uint8)
         Image.fromarray(a, "RGBA").save(f"{out}/marsh.png")
+    # Rozkládající se ostatky na cestu (zelené pozadí) -> corpse_N.png
+    for f in os.listdir(out):
+        if f.startswith("corpse_"):
+            os.remove(os.path.join(out, f))
+    corpse_n = 0
+    for sheet in ("corpse", "corpse2"):
+        path = f"{src}/grim_{biome}_{sheet}.png"
+        if not os.path.exists(path):
+            continue
+        m = np.asarray(Image.open(path).convert("RGB")).astype(int)
+        green = (m[..., 1] > 140) & (m[..., 0] < 150) & (m[..., 2] < 140) & (m[..., 1] > m[..., 0] + 60)
+        fg = ndimage.binary_opening(~green, iterations=2)
+        lab, n = ndimage.label(ndimage.binary_dilation(fg, iterations=8))
+        m = m.copy()
+        m[..., 1] = np.minimum(m[..., 1], np.maximum(m[..., 0], m[..., 2]) + 8)
+        for i in range(1, n + 1):
+            mask = (lab == i) & fg
+            if mask.sum() < 3000:
+                continue
+            mask = ndimage.binary_erosion(mask, iterations=1)
+            ys, xs = np.nonzero(mask)
+            x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+            crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask[y0:y1, x0:x1] * 255).astype(np.uint8)])
+            im = Image.fromarray(crop, "RGBA")
+            w = 56
+            ci = retro(im, (w, max(6, round(im.height * w / im.width * 0.75))))
+            ca = np.asarray(ci).copy()
+            dist = ndimage.distance_transform_edt(ca[..., 3] > 0)
+            ca[..., 3] = (ca[..., 3] * np.clip(dist / (2 * RES), 0, 1)).astype(np.uint8)
+            Image.fromarray(ca, "RGBA").save(f"{out}/corpse_{corpse_n}.png")
+            corpse_n += 1
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}
@@ -204,6 +235,7 @@ def main(biome):
             data = json.loads(mm.group(1))
     data[biome] = objs_total
     data[biome + "_water"] = water_n
+    data[biome + "_corpse"] = corpse_n
     with open(data_path, "w") as f:
         f.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_bg.py – počet objektů v prostřední vrstvě.\n\n")
         f.write(f"const OBJS := {json.dumps(data)}\n")

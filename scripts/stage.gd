@@ -50,6 +50,7 @@ var waves: Array = []
 var biome := ""
 var ground_tex: Texture2D = null
 var water_tex: Array = []
+var corpse_tex: Array = []
 
 var player: PlayerScript
 var fighters: Array = []
@@ -88,6 +89,8 @@ func _ready() -> void:
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		for wi in int(ParallaxScript.BgData.OBJS.get(biome + "_water", 0)):
 			water_tex.append(load("res://art/bg/%s/water_%d.png" % [biome, wi]))
+		for ci in int(ParallaxScript.BgData.OBJS.get(biome + "_corpse", 0)):
+			corpse_tex.append(load("res://art/bg/%s/corpse_%d.png" % [biome, ci]))
 		var back := ParallaxScript.new()
 		back.biome = biome
 		bg_layer.add_child(back)
@@ -465,6 +468,30 @@ func _draw_puddles() -> void:
 		draw_texture_rect(tex, r, false, Color(0.78, 0.82, 0.78))
 
 
+## Rozkládající se ostatky ležící na cestě – ztlumené, aby moc nevystupovaly.
+func _draw_corpses() -> void:
+	if corpse_tex.is_empty():
+		return
+	var step := 300.0
+	var first := int(floorf((cam_x - HALF_W - 200.0) / step))
+	var last := int(ceilf((cam_x + HALF_W + 200.0) / step))
+	for i in range(first, last + 1):
+		var r1 := float(absi((i * 83492791) ^ 55117) % 1000) / 1000.0
+		var r2 := float(absi((i * 2654435761) ^ 9001) % 1000) / 1000.0
+		if r1 < 0.4:
+			continue
+		var tex: Texture2D = corpse_tex[int(r2 * 997.0) % corpse_tex.size()]
+		var sc := 0.8 + r1 * 0.5
+		var w := tex.get_width() / ParallaxScript.R * sc
+		var h := tex.get_height() / ParallaxScript.R * sc
+		var x := i * step + 140.0 + r2 * 100.0
+		var y := 200.0 + r2 * 70.0
+		var r := Rect2(x, y, w, h)
+		if r1 > 0.7:
+			r = Rect2(x + w, y, -w, h)
+		draw_texture_rect(tex, r, false, Color(0.72, 0.7, 0.68))
+
+
 func popup(text: String, at: Vector2, color: Color) -> void:
 	var l := Label.new()
 	l.text = text
@@ -506,6 +533,7 @@ func _draw() -> void:
 		x += w
 	if retro:
 		_draw_puddles()
+		_draw_corpses()
 	if retro:
 		# Hloubka: v dálce mlha, u diváka stín
 		var left := cam_x - HALF_W - 4.0
