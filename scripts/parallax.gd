@@ -128,20 +128,15 @@ func _draw_marsh(offset: float) -> void:
 
 ## Svislý přechod mlhy (od průhledné nahoře k mlze uprostřed a zpět).
 func _fog(y0: float, y1: float, strength: float) -> void:
+	# plynulý přechod (bez proužků): průhledná – mlha – průhledná
 	var w := get_viewport_rect().size.x
-	var c := Color(0.42, 0.42, 0.40, 0.0)
 	var mid := (y0 + y1) * 0.5
-	var steps := 8
-	for k in steps:
-		var a := y0 + (mid - y0) * k / steps
-		var b := y0 + (mid - y0) * (k + 1) / steps
-		c.a = strength * float(k + 1) / steps
-		draw_rect(Rect2(0, a, w, b - a + 1), c)
-	for k in steps:
-		var a2 := mid + (y1 - mid) * k / steps
-		var b2 := mid + (y1 - mid) * (k + 1) / steps
-		c.a = strength * float(steps - k) / steps
-		draw_rect(Rect2(0, a2, w, b2 - a2 + 1), c)
+	var c0 := Color(0.42, 0.42, 0.40, 0.0)
+	var c1 := Color(0.42, 0.42, 0.40, strength)
+	draw_polygon(PackedVector2Array([Vector2(0, y0), Vector2(w, y0), Vector2(w, mid), Vector2(0, mid)]),
+		PackedColorArray([c0, c0, c1, c1]))
+	draw_polygon(PackedVector2Array([Vector2(0, mid), Vector2(w, mid), Vector2(w, y1), Vector2(0, y1)]),
+		PackedColorArray([c1, c1, c0, c0]))
 
 
 func _draw_objects(offset: float, step: float, base_y: float, scale: float, mod: Color, salt: int, only_tall: bool = false) -> void:

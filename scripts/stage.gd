@@ -649,9 +649,13 @@ func _draw() -> void:
 	if retro:
 		# Hloubka: v dálce mlha, u diváka stín
 		var left := cam_x - HALF_W - 4.0
-		for k in 10:
-			var y := 300.0 - h + k * 4.0
-			draw_rect(Rect2(left, y, HALF_W * 2.0 + 8.0, 4.0), Color(0.42, 0.42, 0.40, 0.26 * (1.0 - k / 10.0)))
-		for k in 8:
-			var y2 := 300.0 - 32.0 + k * 4.0
-			draw_rect(Rect2(left, y2, HALF_W * 2.0 + 8.0, 4.0), Color(0.03, 0.02, 0.02, 0.05 * (k + 1)))
+		var ww := HALF_W * 2.0 + 8.0
+		var top := 300.0 - h
+		var fa := Color(0.42, 0.42, 0.40, 0.26)
+		var fb := Color(0.42, 0.42, 0.40, 0.0)
+		draw_polygon(PackedVector2Array([Vector2(left, top), Vector2(left + ww, top), Vector2(left + ww, top + 40.0), Vector2(left, top + 40.0)]),
+			PackedColorArray([fa, fa, fb, fb]))
+		var sa := Color(0.03, 0.02, 0.02, 0.0)
+		var sb := Color(0.03, 0.02, 0.02, 0.4)
+		draw_polygon(PackedVector2Array([Vector2(left, 268.0), Vector2(left + ww, 268.0), Vector2(left + ww, 300.0), Vector2(left, 300.0)]),
+			PackedColorArray([sa, sa, sb, sb]))
