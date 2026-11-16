@@ -54,6 +54,7 @@ var rig_tex := {}
 var anim_tex := {}
 var anim_clock := 0.0
 var anim_set: Dictionary = {}
+var incoming_move := ""  # tah, kterým nás právě zasahují (kvůli krytí)
 var anim_k := 1.0
 
 

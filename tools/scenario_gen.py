@@ -28,9 +28,15 @@ def main():
     for a in sys.argv[4:]:
         if "=" in a:
             k, v = a.split("=", 1)
-            params[k] = int(v) if v.isdigit() else v
+            # "s:10" = poslat jako text (některé modely chtějí délku jako řetězec)
+            if v.startswith("s:"):
+                params[k] = v[2:]
+            else:
+                params[k] = int(v) if v.isdigit() else v
     est = call("POST", f"/generate/custom/{model}?dryRun=true", params)
     print("cena:", est.get("creativeUnitsCost", est))
+    if "creativeUnitsCost" not in est:
+        sys.exit(1)
     if dry:
         return
     job = call("POST", f"/generate/custom/{model}", params)

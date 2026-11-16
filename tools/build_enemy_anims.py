@@ -1,7 +1,7 @@
 """Animace nepřátel z videí (snímky po odstranění pozadí, 12 fps, 960×540).
 
 Použití:  python3 tools/build_enemy_anims.py SLOZKA
-SLOZKA obsahuje podsložky k_<video>/cut/r_NNN.png (idle, walk, attack, block, fall).
+SLOZKA obsahuje pro každý druh podsložku (viz "src") s k_<video>/cut/r_NNN.png.
 Výstup: art/enemy_anim/<druh>/*.webp a scripts/enemy_anims.gd.
 """
 import os
@@ -10,41 +10,49 @@ import sys
 import numpy as np
 from PIL import Image
 
-LOGICAL_H = 180.0  # výška obra ve hře (logické px)
-
-# druh: {animace: (video, snímky, smyčka, snímek úderu)}
+# druh: {"src": podsložka se snímky, "h": výška ve hře (logické px), "anchor": video pro kotvu,
+#        "anims": {animace: (video, snímky, smyčka, snímek úderu)}}
 # Vynechané snímky mají chyby z videa (zdvojený nebo rozmazaný kyj).
 SETS = {
-    "ogre": {
+    "ogre": {"src": "en2", "h": 180.0, "anchor": "idle", "anims": {
         "idle": ("idle", list(range(0, 61, 2)), True, -1),
         "walk": ("walk", list(range(0, 31)), True, -1),
         "attack": ("attack", [i for i in range(9, 43) if i != 28], False, 18),
         "block": ("block", [i for i in range(6, 37) if i != 10], False, -1),
         "fall": ("fall", [i for i in range(9, 37) if i != 19], False, -1),
-    },
+    }},
+    "skeleton": {"src": "sk", "h": 96.0, "anchor": "v1", "anims": {
+        "idle": ("v1", list(range(0, 21)) + list(range(19, 0, -1)), True, -1),
+        "walk": ("v3", list(range(0, 31)), True, -1),
+        "attack": ("v1", list(range(22, 51)), False, 14),
+        "block": ("v2", list(range(4, 23)), False, -1),
+        "fall": ("v2", list(range(36, 56)), False, -1),
+    }},
 }
 
 
 def main(src):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     lines = ["extends RefCounted", "## VYGENEROVÁNO skriptem tools/build_enemy_anims.py – neupravovat ručně.", "", "const SETS := {"]
-    for kind, anims in SETS.items():
+    for kind, cfg in SETS.items():
+        anims = cfg["anims"]
+        base = os.path.join(src, cfg["src"])
         out = os.path.join(root, "art/enemy_anim", kind)
         os.makedirs(out, exist_ok=True)
         for f in os.listdir(out):
             os.remove(os.path.join(out, f))
         # Kotva: střed chodidel v prvním snímku stání (kamera je statická)
-        a0 = np.asarray(Image.open(f"{src}/k_idle/cut/r_001.png"))[..., 3] > 128
+        a0 = np.asarray(Image.open(f"{base}/k_{cfg['anchor']}/cut/r_001.png"))[..., 3] > 128
         ys, xs = np.nonzero(a0)
         bottom = ys.max()
         feet = xs[ys > bottom - 20]
         ax, ay = float(feet.mean()), float(bottom)
-        k = LOGICAL_H / float(bottom - ys.min())
+        k = cfg["h"] / float(bottom - ys.min())
         lines.append(f'\t"{kind}": {{"k": {k:.4f}, "anims": {{')
         for name, (vid, frames, loop, impact) in anims.items():
             paths, offs = [], []
             for n, idx in enumerate(frames):
-                im = Image.open(f"{src}/k_{vid}/cut/r_{idx + 1:03d}.png").convert("RGBA")
+                im = Image.open(f"{base}/k_{vid}/cut/r_{idx + 1:03d}.png").convert("RGBA")
                 a = np.asarray(im).copy()
                 al = a[..., 3]
                 al[al < 24] = 0

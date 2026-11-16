@@ -125,16 +125,31 @@ func _draw_extra() -> void:
 var blocking := false
 
 
-## Obr se občas ubrání: zvedne kyj a ránu odrazí.
+## Krytí: obr občas odrazí běžný úder kyjem, kostlivec se kryje štítem skoro pořád.
+## Štít prorazí jen úder ve výskoku (povalí ho) a magie.
+func _wants_block(knock: bool) -> bool:
+	if anim_tex.is_empty() or not anim_tex.has("block"):
+		return false
+	if state != S.IDLE and state != S.WALK and not (blocking and state == S.HURT):
+		return false
+	if incoming_move == "jatk" or incoming_move == "magic":
+		return false
+	if kind == "skeleton":
+		return randf() < 0.75
+	return not knock and randf() < 0.4
+
+
+
 func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
-	if not anim_tex.is_empty() and anim_tex.has("block") and not knock \
-			and (state == S.IDLE or state == S.WALK) and randf() < 0.4:
+	if _wants_block(knock):
 		blocking = true
 		set_state(S.HURT)
 		facing = -dir
 		vel = Vector2(dir * 40.0, 0.0)
-		Sfx.play("hit", 0.55)
-		stage.fx.burst(Vector2(pos.x - dir * 20.0, pos.y - 120.0), Color("fff4c0"), 10, 120.0, 0.25, 0.0, 2.0)
+		Sfx.play("hit", 0.55 if kind == "ogre" else 0.8)
+		var hy := 120.0 if kind == "ogre" else 60.0
+		stage.fx.burst(Vector2(pos.x - dir * 14.0, pos.y - hy), Color("fff4c0"), 10, 120.0, 0.25, 0.0, 2.0)
+		stage.popup("BLOK", pos + Vector2(-8, -hy - 10.0), Color("c8c8d0"))
 		return
 	blocking = false
 	super.take_hit(dmg, dir, knock, push)

@@ -345,6 +345,7 @@ func do_hits(att: Node2D) -> void:
 			att.hit_done.append(f)
 			var dmg: int = int(mv["dmg"])
 			var knock: bool = mv["knock"]
+			f.set("incoming_move", att.move_name)
 			f.take_hit(dmg, att.facing, knock, float(mv["push"]))
 			var hit_pos := Vector2(f.pos.x - att.facing * 4.0, f.pos.y - f.z - 22.0 * f.body_scale)
 			fx.burst(hit_pos, Color("fff4c0"), 8, 140.0, 0.22, 0.0, 2.0)
@@ -367,6 +368,7 @@ func magic_blast(p: Node2D, power: int) -> void:
 		if absf(f.pos.x - cam_x) < HALF_W + 10.0:
 			var dir := 1 if f.pos.x >= p.pos.x else -1
 			f.invuln = 0
+			f.set("incoming_move", "magic")
 			f.take_hit(10 + 14 * power, dir, true, 0.0)
 			fx.burst(Vector2(f.pos.x, f.pos.y - 30.0), Color("a0e8ff"), 14, 160.0, 0.5, 0.0, 3.0)
 			score += 50 * power
