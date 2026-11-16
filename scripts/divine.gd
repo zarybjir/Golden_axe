@@ -114,9 +114,9 @@ const TILT := 0.6           # sklon hlavy a krku (rad)
 
 func _draw_dragon() -> void:
 	var cam := get_viewport().get_camera_2d()
-	var center := Vector2(240.0, 95.0)
+	var center := Vector2(240.0, 38.0)
 	if cam != null:
-		center = Vector2(cam.get_screen_center_position().x, 95.0)
+		center = Vector2(cam.get_screen_center_position().x, 38.0)
 	var hp := center + Vector2(_head_s(), 0.0)          # pohyb vodorovně
 	var dir := Vector2(cos(TILT), sin(TILT))            # natočení hlavy a těla
 	var nrm := Vector2(-dir.y, dir.x)
@@ -126,9 +126,9 @@ func _draw_dragon() -> void:
 		if t > 0.25 and t < FLY_TIME:
 			var flick := 1.0 + 0.08 * sin(t * 50.0)
 			var mouth := hp + dir * 70.0 + nrm * 26.0
-			var fl := 300.0 * flick
-			var fh := 160.0 * flick
-			draw_set_transform(mouth, TILT + 0.15, Vector2.ONE)
+			var fl := 250.0 * flick   # konec ohně dopadá na pochozí plochu
+			var fh := 150.0 * flick
+			draw_set_transform(mouth, TILT + 0.12, Vector2.ONE)
 			draw_texture_rect(fire, Rect2(-10.0, -fh * 0.5, fl, fh), false, Color(1, 1, 1, 0.95 * fade))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
