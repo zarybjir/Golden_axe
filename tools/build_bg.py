@@ -25,7 +25,7 @@ GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "7
         "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470",
         "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
-GROUND_CROP = {"swamp": (0.0, 0.32, 1.0, 1.0)}
+GROUND_CROP = {"swamp": (0.0, 0.32, 1.0, 1.0), "jungle": (0.0, 0.5, 1.0, 1.0)}
 
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5
@@ -226,6 +226,33 @@ def main(biome):
             ca[..., 3] = (ca[..., 3] * np.clip(dist / (2 * RES), 0, 1)).astype(np.uint8)
             Image.fromarray(ca, "RGBA").save(f"{out}/corpse_{corpse_n}.png")
             corpse_n += 1
+    # Překážky: klády (logs) a nášlapné pasti (plates) na zeleném pozadí
+    extra = {}
+    for sheet, prefix, width in (("logs", "log", 150), ("plates", "plate", 46)):
+        for f in os.listdir(out):
+            if f.startswith(prefix + "_"):
+                os.remove(os.path.join(out, f))
+        path = f"{src}/grim_{biome}_{sheet}.png"
+        n_out = 0
+        if os.path.exists(path):
+            m = np.asarray(Image.open(path).convert("RGB")).astype(int)
+            green = (m[..., 1] > 140) & (m[..., 0] < 160) & (m[..., 2] < 140) & (m[..., 1] > m[..., 0] + 50)
+            fg = ndimage.binary_opening(~green, iterations=2)
+            lab, n = ndimage.label(ndimage.binary_dilation(fg, iterations=4))
+            m = m.copy()
+            m[..., 1] = np.minimum(m[..., 1], np.maximum(m[..., 0], m[..., 2]) + 8)
+            sizes = ndimage.sum(fg, lab, range(n + 1))
+            for i in sorted(range(1, n + 1), key=lambda k: -sizes[k])[:4]:
+                if sizes[i] < 5000:
+                    continue
+                mask = ndimage.binary_erosion((lab == i) & fg, iterations=1)
+                ys, xs = np.nonzero(mask)
+                x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+                crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask[y0:y1, x0:x1] * 255).astype(np.uint8)])
+                im = Image.fromarray(crop, "RGBA")
+                retro(im, (width, max(4, round(im.height * width / im.width)))).save(f"{out}/{prefix}_{n_out}.png")
+                n_out += 1
+        extra[f"{biome}_{prefix}"] = n_out
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}
@@ -236,6 +263,7 @@ def main(biome):
     data[biome] = objs_total
     data[biome + "_water"] = water_n
     data[biome + "_corpse"] = corpse_n
+    data.update(extra)
     with open(data_path, "w") as f:
         f.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_bg.py – počet objektů v prostřední vrstvě.\n\n")
         f.write(f"const OBJS := {json.dumps(data)}\n")

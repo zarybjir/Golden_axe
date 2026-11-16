@@ -8,6 +8,7 @@ const EnemyScript := preload("res://scripts/enemy.gd")
 const PropScript := preload("res://scripts/props.gd")
 const CreatureScript := preload("res://scripts/creature.gd")
 const FxScript := preload("res://scripts/fx.gd")
+const HazardsScript := preload("res://scripts/hazards.gd")
 const DivineScript := preload("res://scripts/divine.gd")
 const BackgroundScript := preload("res://scripts/background.gd")
 const ParallaxScript := preload("res://scripts/parallax.gd")
@@ -32,7 +33,10 @@ const STAGES := [
 		{"x": 1300.0, "enemies": [["rider", 1], ["skeleton", -1], ["skeleton", 1]]},
 		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["skeleton", 1]], "boss": true},
 	]},
-	{"name": "Džungle", "biome": "jungle", "waves": [
+	{"name": "Džungle", "biome": "jungle",
+		"logs": [600.0, 1090.0, 1540.0],
+		"traps": [[380.0, 250.0], [780.0, 215.0], [940.0, 268.0], [1220.0, 232.0], [1400.0, 272.0], [1700.0, 222.0]],
+		"waves": [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1], ["ghoul", -1]]},
 		{"x": 860.0, "enemies": [["rider", 1], ["rider", -1]]},
 		{"x": 1300.0, "enemies": [["skeleton", 1], ["ghoul", -1], ["skeleton", -1], ["ghoul", 1]]},
@@ -51,6 +55,7 @@ var waves: Array = []
 var biome := ""
 var ground_tex: Texture2D = null
 var water_tex: Array = []
+var hazards: Node2D = null
 var corpse_tex: Array = []
 
 var player: PlayerScript
@@ -92,6 +97,14 @@ func _ready() -> void:
 			water_tex.append(load("res://art/bg/%s/water_%d.png" % [biome, wi]))
 		for ci in int(ParallaxScript.BgData.OBJS.get(biome + "_corpse", 0)):
 			corpse_tex.append(load("res://art/bg/%s/corpse_%d.png" % [biome, ci]))
+		if st.has("logs") or st.has("traps"):
+			hazards = HazardsScript.new()
+			hazards.stage = self
+			hazards.biome = biome
+			hazards.logs = st.get("logs", [])
+			for tr in st.get("traps", []):
+				hazards.traps.append([Vector2(tr[0], tr[1]), 0, 0.0, 1])
+			add_child(hazards)
 		var back := ParallaxScript.new()
 		back.biome = biome
 		bg_layer.add_child(back)
@@ -134,12 +147,15 @@ func _physics_process(_delta: float) -> void:
 	if hitstop > 0:
 		hitstop -= 1
 		return
+	var prev_x: float = player.pos.x
 	if not finished:
 		time += Fighter.DT
 	for f in fighters.duplicate():
 		if is_instance_valid(f):
 			f.tick()
 	_clamp_all()
+	if hazards != null:
+		hazards.step(prev_x)
 	_pickups()
 	_cleanup()
 	_drowning()

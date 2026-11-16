@@ -403,6 +403,12 @@ func _take_shots() -> void:
 	stage.debug_jump_to_wave(0)
 	await _wait(2.6)
 	_save_shot("2c_dzungle")
+	# nášlapná past a šipka
+	stage.player.pos = Vector2(380.0, 250.0)
+	stage.player.set_state(Fighter.S.IDLE)
+	await _wait(0.62)
+	_save_shot("2e_past")
+	await _wait(1.6)
 	start_stage(3)
 	stage.debug_jump_to_wave(1)
 	await _wait(2.6)
