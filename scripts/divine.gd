@@ -107,40 +107,44 @@ func _head_s() -> float:
 	return lerpf(-520.0, 560.0, k)
 
 
+## Drak letí vodorovně nad obrazovkou: dolů vystrkuje šikmo skloněnou hlavu,
+## krk a tělo vedou šikmo vzhůru za horní okraj.
+const TILT := 0.6           # sklon hlavy a krku (rad)
+
+
 func _draw_dragon() -> void:
 	var cam := get_viewport().get_camera_2d()
-	var center := Vector2(240.0, 72.0)
+	var center := Vector2(240.0, 95.0)
 	if cam != null:
-		center = Vector2(cam.get_screen_center_position().x, 72.0)
-	var dir := Vector2(cos(DIVE), sin(DIVE))
+		center = Vector2(cam.get_screen_center_position().x, 95.0)
+	var hp := center + Vector2(_head_s(), 0.0)          # pohyb vodorovně
+	var dir := Vector2(cos(TILT), sin(TILT))            # natočení hlavy a těla
 	var nrm := Vector2(-dir.y, dir.x)
-	var hp := center + dir * _head_s()
 	var fade := clampf((LIFE_DRAGON - t) / 0.25, 0.0, 1.0)
 	if mode == "fire":
 		# oheň z tlamy šikmo dolů před hlavou, za postavami
 		if t > 0.25 and t < FLY_TIME:
 			var flick := 1.0 + 0.08 * sin(t * 50.0)
 			var mouth := hp + dir * 70.0 + nrm * 26.0
-			var ang := 0.62   # oheň šikmo dolů na bojiště
-			var fl := 330.0 * flick
-			var fh := 170.0 * flick
-			draw_set_transform(mouth, ang, Vector2.ONE)
+			var fl := 300.0 * flick
+			var fh := 160.0 * flick
+			draw_set_transform(mouth, TILT + 0.15, Vector2.ONE)
 			draw_texture_rect(fire, Rect2(-10.0, -fh * 0.5, fl, fh), false, Color(1, 1, 1, 0.95 * fade))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
-	# tělo – články podél dráhy za hlavou, vlní se
+	# tělo – články šikmo vzhůru za hlavou, vlní se a mizí za horním okrajem
 	var bw := float(body.get_width()) * 120.0 / float(body.get_height())
 	var seg := bw * 0.55
-	for k in range(14, -1, -1):
+	for k in range(10, -1, -1):
 		var back := 150.0 + seg * k
 		var wob := sin(k * 0.9 - t * 7.0) * 12.0
 		var c := hp - dir * back + nrm * wob
-		var rot := DIVE + cos(k * 0.9 - t * 7.0) * 0.08
+		var rot := TILT + cos(k * 0.9 - t * 7.0) * 0.08
 		draw_set_transform(c, rot, Vector2.ONE)
 		draw_texture_rect(body, Rect2(-bw * 0.5, -60.0 + 6.0, bw, 120.0), false, Color(1, 1, 1, fade))
-	# hlava – skloněná ve směru letu
+	# hlava – skloněná šikmo dolů
 	var hh := 170.0
 	var hw := head.get_width() * hh / head.get_height()
-	draw_set_transform(hp, DIVE, Vector2.ONE)
+	draw_set_transform(hp, TILT, Vector2.ONE)
 	draw_texture_rect(head, Rect2(-hw * 0.7, -hh * 0.5, hw, hh), false, Color(1, 1, 1, fade))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
