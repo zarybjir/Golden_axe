@@ -25,8 +25,8 @@ SETS = {
         "idle": ("v1", list(range(0, 21)) + list(range(19, 0, -1)), True, -1),
         "walk": ("v3", list(range(0, 31)), True, -1),
         "attack": ("v1", list(range(22, 51)), False, 14),
-        "block": ("v2", list(range(4, 23)), False, -1),
-        "fall": ("v2", list(range(36, 56)), False, -1),
+        "block": ("v2", list(range(4, 14)), False, -1),
+        "fall": ("v2", [41, 42] + list(range(44, 56)), False, -1),
     }},
 }
 
