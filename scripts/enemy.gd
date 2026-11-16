@@ -46,7 +46,7 @@ func _ready() -> void:
 	hit_w = float(cfg.get("hit_w", 9.0))
 	hit_depth = float(cfg.get("depth", 0.0))
 	cooldown = 30 + randi() % 50
-	if cfg.has("sprite"):
+	if cfg.has("sprite") and not EnemyAnims.SETS.has(kind):
 		sprite_tex = load("res://art/enemy_sprite/%s.webp" % cfg["sprite"])
 		sprite_h = float(cfg["h"])
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -173,6 +173,8 @@ func _wants_block(knock: bool) -> bool:
 		return false
 	if kind == "skeleton":
 		return randf() < 0.75
+	if kind != "ogre":
+		return false   # lidojed se nekryje – "block" je u něj jen cuknutí po zásahu
 	return not knock and randf() < 0.4
 
 
@@ -212,6 +214,8 @@ func _anim_pick() -> Array:
 				return ["walk", int(anim_clock * 24.0), 0.0]
 			return ["attack", _move_frame("attack"), 0.0]
 		S.HURT:
+			if not blocking and kind == "ghoul" and anim_tex.has("block"):
+				return ["block", state_t * anim_tex["block"].size() / hurt_len, 0.0]
 			if blocking:
 				return ["block", state_t * anim_tex["block"].size() / hurt_len, 0.0]
 			return ["idle", 0, -0.1]

@@ -23,6 +23,13 @@ SETS = {
         "block": ("block", [i for i in range(6, 37) if i != 10], False, -1),
         "fall": ("fall", [i for i in range(9, 37) if i != 19], False, -1, "pin"),
     }},
+    "ghoul": {"src": "gh", "h": 100.0, "anchor": "v1", "anims": {
+        "idle": ("v1", list(range(0, 22)), True, -1),
+        "walk": ("v3", list(range(0, 61, 2)), True, -1),
+        "attack": ("v1", list(range(24, 42)), False, 5),
+        "block": ("v2", list(range(10, 22)), False, -1),
+        "fall": ("v2", list(range(24, 46)), False, -1, "pin"),
+    }},
     "skeleton": {"src": "sk", "h": 96.0, "anchor": "v1", "anims": {
         "idle": ("v1", list(range(0, 21)) + list(range(19, 0, -1)), True, -1),
         "walk": ("v3", list(range(0, 31)), True, -1),
