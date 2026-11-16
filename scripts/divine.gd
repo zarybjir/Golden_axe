@@ -132,7 +132,7 @@ func _draw_dragon() -> void:
 	var bw := float(body.get_width()) * 110.0 / float(body.get_height())
 	var seg := bw * 0.55
 	for k in range(14, -1, -1):
-		var back := 40.0 + seg * k
+		var back := 70.0 + seg * k
 		var wob := sin(k * 0.9 - t * 7.0) * 12.0
 		var c := hp - dir * back + nrm * wob
 		var rot := DIVE + cos(k * 0.9 - t * 7.0) * 0.08
