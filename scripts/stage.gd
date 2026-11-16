@@ -540,8 +540,8 @@ func in_pool(p: Vector2) -> bool:
 		var r: Rect2 = pl[0]
 		var c := r.get_center()
 		# voda = vnitřek tůně uvnitř bahnitého okraje
-		var dx := (p.x - c.x) / (r.size.x * POOL_RX * 0.82)
-		var dy := (p.y - c.y) / (r.size.y * POOL_RY * 0.8)
+		var dx := (p.x - c.x) / (r.size.x * POOL_RX * 0.62)
+		var dy := (p.y - c.y) / (r.size.y * POOL_RY * 0.6)
 		if dx * dx + dy * dy < 1.0:
 			return true
 	return false

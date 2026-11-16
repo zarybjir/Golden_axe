@@ -257,7 +257,8 @@ func _draw() -> void:
 	var w := sprite_tex.get_width() * sc
 	# stín na zemi
 	var sw := w * (0.35 if flying else 0.3)
-	_ellipse(Vector2(0, z), sw, sw * 0.22, Color(0, 0, 0, 0.3 if z < 30.0 else 0.18))
+	if drown_t == 0:
+		_ellipse(Vector2(0, z), sw, sw * 0.22, Color(0, 0, 0, 0.3 if z < 30.0 else 0.18))
 	var mod := Color.WHITE
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
