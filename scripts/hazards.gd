@@ -9,7 +9,7 @@ const Fighter := preload("res://scripts/fighter.gd")
 const BgData := preload("res://scripts/bg_data.gd")
 const R := BgData.RES
 
-const LOG_HALF := 13.0     # polovina šířky klády (px), kterou nejde projít
+const LOG_HALF := 18.0     # polovina šířky klády (px), kterou nejde projít
 const LOG_JUMP_Z := 26.0   # nad touto výškou se kláda přeskočí (pořádný skok)
 const DART_SPEED := 340.0
 const WARN_TIME := 0.5
@@ -27,7 +27,7 @@ var log_nodes: Array = []
 const LOG_SEGS := 8
 const LOG_Y0 := 188.0      # zadní konec klády (za cestou)
 const LOG_Y1 := 300.0      # přední konec (u spodního okraje)
-const LOG_SKEW := 0.34     # šikmá perspektiva: zadní konec je víc vpravo
+const LOG_SKEW := 0.6     # šikmá perspektiva: zadní konec je víc vpravo
 
 
 ## x osy klády v dané hloubce y
@@ -173,10 +173,10 @@ func _draw_log_seg(n: Node2D, k: int, sgi: int) -> void:
 	var t0 := float(sgi) / LOG_SEGS
 	var t1 := float(sgi + 1) / LOG_SEGS
 	var depth := lerpf(0.8, 1.2, (t0 + t1) * 0.5)   # perspektiva
-	var thick := 26.0 * depth
+	var thick := 44.0 * depth
 	var p0 := a + axis * t0
 	n.draw_set_transform(p0, ang, Vector2.ONE)
-	var shade := lerpf(0.6, 0.85, (t0 + t1) * 0.5)
+	var shade := lerpf(0.72, 0.95, (t0 + t1) * 0.5)
 	n.draw_texture_rect_region(tex, Rect2(0.0, -thick * 0.5, len * (t1 - t0) + 0.6, thick),
 		Rect2(tw * t0, 0.0, tw * (t1 - t0), th), Color(shade, shade, shade * 0.97))
 	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
