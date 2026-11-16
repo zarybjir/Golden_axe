@@ -189,9 +189,9 @@ def main(biome):
         marsh = retro(Image.fromarray(ma.astype(np.uint8), "RGBA"), (round(ma.shape[1] * 40 / ma.shape[0]), 40))
         a = np.asarray(marsh).copy().astype(float)
         hh, ww = a.shape[:2]
-        top = np.clip(np.arange(hh) / (8 * RES), 0, 1)[:, None]
+        top = np.clip(np.arange(hh) / (hh * 0.55), 0, 1)[:, None] ** 1.5
         xx = np.arange(ww)
-        side = np.clip(np.minimum(xx, ww - 1 - xx) / (60 * RES), 0, 1)[None, :]
+        side = np.clip(np.minimum(xx, ww - 1 - xx) / (ww * 0.3), 0, 1)[None, :] ** 1.5
         a[..., 3] *= top * side
         a = a.astype(np.uint8)
         Image.fromarray(a, "RGBA").save(f"{out}/marsh.png")
