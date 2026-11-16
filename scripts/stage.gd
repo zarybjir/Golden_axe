@@ -330,6 +330,9 @@ func release_token(e: Node2D) -> void:
 func do_hits(att: Node2D) -> void:
 	var mv: Dictionary = att.move
 	var reach: float = float(mv["reach"]) * att.body_scale
+	var c = att.get("cfg")
+	if att.team == 1 and c is Dictionary and c.has("range"):
+		reach = float(c["range"]) + 6.0
 	var targets: Array = []
 	for f in fighters:
 		if f.team != att.team and f.can_be_hit() and not att.hit_done.has(f):

@@ -103,16 +103,17 @@ func _ai() -> void:
 		return
 	if not has_token:
 		has_token = stage.request_token(self)
-	var reach: float = float(cfg["reach"]) * body_scale
+	# dosah zbraně (px): útočí, jakmile zbraň/zuby dosáhnou na hrdinu
+	var reach: float = float(cfg.get("range", float(cfg["reach"]) * body_scale))
 	if has_token:
 		if kind == "ogre" and cooldown <= 0 and absf(dy) < 12.0 and absf(dx) > 130.0 and absf(dx) < 260.0:
 			start_move("ogre_charge")
 			Sfx.play("roar")
 			return
-		if absf(dx) <= reach and absf(dy) <= 6.0 and cooldown <= 0:
+		if absf(dx) <= reach and absf(dy) <= 10.0 and cooldown <= 0:
 			start_move(cfg["attack"])
 			return
-		_walk_to(Vector2(p.pos.x - facing * reach * 0.75, p.pos.y))
+		_walk_to(Vector2(p.pos.x - facing * reach * 0.85, p.pos.y))
 	else:
 		_walk_to(Vector2(p.pos.x - facing * 150.0, clampf(p.pos.y + slot, Y_MIN, Y_MAX)))
 
