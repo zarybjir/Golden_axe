@@ -122,7 +122,7 @@ func _ai() -> void:
 			Sfx.play("roar")
 			return
 		# liánovec útočí, jen když je celý na obrazovce
-		var on_screen := absf(pos.x - stage.cam_x) < stage.HALF_W - 40.0
+		var on_screen: bool = absf(pos.x - stage.cam_x) < stage.HALF_W - 40.0
 		if kind == "vine" and not on_screen:
 			_walk_to(Vector2(stage.cam_x + signf(pos.x - stage.cam_x) * (stage.HALF_W - 60.0), p.pos.y))
 			return
