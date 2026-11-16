@@ -21,7 +21,8 @@ OBJ_H = 78       # výška největšího objektu v prostřední vrstvě (malé =
 COLORS = 40
 # Ponurá paleta: bláto, popel, špinavá oliva, zaschlá krev, kost
 GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "75624f",
-        "222620", "30352c", "40463a", "55594f", "36181a", "4e201c", "642a22", "8c7f68"]
+        "8a7660", "222620", "30352c", "40463a", "55594f", "6b6e60", "36181a", "4e201c",
+        "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470"]
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
 GROUND_CROP = {"swamp": (0.30, 0.18, 0.74, 1.0)}
 
@@ -35,8 +36,8 @@ def grim(rgb):
     a = rgb.astype(float)
     # ztlumit sytost a jas
     lum = a.mean(axis=2, keepdims=True)
-    a = lum + (a - lum) * 0.45
-    a *= 0.8
+    a = lum + (a - lum) * 0.62
+    a *= 0.97
     h, w = a.shape[:2]
     a += BAYER[np.arange(h)[:, None] % 4, np.arange(w)[None, :] % 4][..., None] * 22.0
     d = ((a[:, :, None, :] - pal[None, None, :, :]) ** 2).sum(axis=3)

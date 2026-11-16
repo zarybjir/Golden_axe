@@ -10,17 +10,24 @@ var biome := "swamp"
 var mode := "back"
 var sky: Texture2D
 var objs: Array = []
+var ground: Texture2D
 
 const SKY_SPEED := 0.15
 const MID_SPEED := 0.55
 const FRONT_SPEED := 1.35
-const MID_STEP := 95.0
+const MID_STEP := 120.0
+const FAR_SPEED := 0.32
+const FAR_STEP := 70.0
+const HORIZON_Y := 150.0
+const FAR_BASE_Y := 160.0
+const NEAR_BASE_Y := 182.0
 const FRONT_STEP := 520.0
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sky = load("res://art/bg/%s/sky.png" % biome)
+	ground = load("res://art/bg/%s/ground.png" % biome)
 	var n: int = BgData.OBJS.get(biome, 0)
 	for i in n:
 		objs.append(load("res://art/bg/%s/obj_%d.png" % [biome, i]))
@@ -52,15 +59,50 @@ func _draw() -> void:
 	var left := _cam_left()
 	if mode == "back":
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.03, 0.04))
+		# 1) Nebe a obzor – nejpomaleji
 		var sw := float(sky.get_width())
 		var sx := -fposmod(left * SKY_SPEED, sw)
 		while sx < size.x:
 			draw_texture(sky, Vector2(roundf(sx), 0.0))
 			sx += sw
-		# Vzdálené objekty: menší, ztmavlé a zahalené do oparu
-		_draw_objects(left * MID_SPEED, MID_STEP, 156.0, 1.0, Color(0.72, 0.7, 0.68), 0)
+		# 2) Vzdálená země (perspektivně zploštělá) – na ní stojí vzdálené objekty
+		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, NEAR_BASE_Y + 4.0)
+		# 3) Vzdálená řada objektů v mlze
+		_draw_objects(left * FAR_SPEED, FAR_STEP, FAR_BASE_Y, 0.55, Color(0.62, 0.62, 0.64), 11)
+		_fog(HORIZON_Y - 26.0, NEAR_BASE_Y - 6.0, 0.30)
+		# 4) Bližší řada objektů
+		_draw_objects(left * MID_SPEED, MID_STEP, NEAR_BASE_Y, 0.9, Color(0.86, 0.84, 0.82), 0)
 	else:
 		_draw_objects(left * FRONT_SPEED, FRONT_STEP, size.y + 18.0, 1.5, Color(0.06, 0.04, 0.05, 0.92), 7)
+
+
+func _draw_far_ground(offset: float, y0: float, y1: float) -> void:
+	if ground == null:
+		return
+	var h := y1 - y0
+	var w := float(ground.get_width()) * 0.7
+	var x := -fposmod(offset, w)
+	while x < get_viewport_rect().size.x:
+		draw_texture_rect(ground, Rect2(roundf(x), y0, w, h), false, Color(0.72, 0.7, 0.68))
+		x += w
+
+
+## Svislý přechod mlhy (od průhledné nahoře k mlze uprostřed a zpět).
+func _fog(y0: float, y1: float, strength: float) -> void:
+	var w := get_viewport_rect().size.x
+	var c := Color(0.42, 0.42, 0.40, 0.0)
+	var mid := (y0 + y1) * 0.5
+	var steps := 8
+	for k in steps:
+		var a := y0 + (mid - y0) * k / steps
+		var b := y0 + (mid - y0) * (k + 1) / steps
+		c.a = strength * float(k + 1) / steps
+		draw_rect(Rect2(0, a, w, b - a + 1), c)
+	for k in steps:
+		var a2 := mid + (y1 - mid) * k / steps
+		var b2 := mid + (y1 - mid) * (k + 1) / steps
+		c.a = strength * float(steps - k) / steps
+		draw_rect(Rect2(0, a2, w, b2 - a2 + 1), c)
 
 
 func _draw_objects(offset: float, step: float, base_y: float, scale: float, mod: Color, salt: int) -> void:

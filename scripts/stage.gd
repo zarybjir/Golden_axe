@@ -469,9 +469,19 @@ func _draw() -> void:
 	# Malovaná zem: opakující se pás, posouvá se spolu s postavami.
 	if ground_tex == null:
 		return
-	var h := float(ground_tex.get_height()) if ParallaxScript.has_biome(biome) else 156.0
+	var retro := ParallaxScript.has_biome(biome)
+	var h := 120.0 if retro else 156.0
 	var w := float(ground_tex.get_width()) * h / float(ground_tex.get_height())
 	var x := floorf((cam_x - HALF_W - 10.0) / w) * w
 	while x < cam_x + HALF_W + 10.0:
 		draw_texture_rect(ground_tex, Rect2(roundf(x), 300.0 - h, w, h), false)
 		x += w
+	if retro:
+		# Hloubka: v dálce mlha, u diváka stín
+		var left := cam_x - HALF_W - 4.0
+		for k in 10:
+			var y := 300.0 - h + k * 4.0
+			draw_rect(Rect2(left, y, HALF_W * 2.0 + 8.0, 4.0), Color(0.42, 0.42, 0.40, 0.26 * (1.0 - k / 10.0)))
+		for k in 8:
+			var y2 := 300.0 - 32.0 + k * 4.0
+			draw_rect(Rect2(left, y2, HALF_W * 2.0 + 8.0, 4.0), Color(0.03, 0.02, 0.02, 0.05 * (k + 1)))
