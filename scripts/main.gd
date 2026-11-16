@@ -269,13 +269,15 @@ func _smoke(delta: float) -> void:
 				stage.player.take_hit(5, 1, false, 0.0)
 				smoke_step = 3
 		3:
-			if smoke_time > 9.0:
-				if stage.player.state == Fighter.S.DEAD:
-					_smoke_fail("hrdina se neoživil")
+			# hrdina se mezitím mohl i utopit v tůni – počkat, až se oživí
+			var down: bool = stage.player.state == Fighter.S.DEAD or stage.player.drown_t > 0
+			if smoke_time > 9.0 and not down:
 				pause()
 				smoke_step = 4
+			elif smoke_time > 14.0:
+				_smoke_fail("hrdina se neoživil")
 		4:
-			if smoke_time > 9.5:
+			if smoke_step == 4:
 				start_stage(3)
 				stage.debug_jump_to_wave(1)
 				smoke_step = 5
