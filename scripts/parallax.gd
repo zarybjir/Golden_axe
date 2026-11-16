@@ -11,6 +11,7 @@ var mode := "back"
 var sky: Texture2D
 var objs: Array = []
 var ground: Texture2D
+var marsh: Texture2D = null
 
 const SKY_SPEED := 0.15
 const MID_SPEED := 0.55
@@ -28,6 +29,8 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sky = load("res://art/bg/%s/sky.png" % biome)
 	ground = load("res://art/bg/%s/ground.png" % biome)
+	if ResourceLoader.exists("res://art/bg/%s/marsh.png" % biome):
+		marsh = load("res://art/bg/%s/marsh.png" % biome)
 	var n: int = BgData.OBJS.get(biome, 0)
 	for i in n:
 		objs.append(load("res://art/bg/%s/obj_%d.png" % [biome, i]))
@@ -67,8 +70,7 @@ func _draw() -> void:
 			sx += sw
 		# 2) Vzdálená země (perspektivně zploštělá) – na ní stojí vzdálené objekty
 		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, NEAR_BASE_Y + 4.0)
-		if biome == "swamp":
-			_draw_far_water(left * FAR_SPEED)
+		_draw_marsh(left * FAR_SPEED)
 		# 3) Vzdálená řada objektů v mlze
 		_draw_objects(left * FAR_SPEED, FAR_STEP, FAR_BASE_Y, 0.8, Color(0.62, 0.62, 0.64), 11)
 		_fog(HORIZON_Y - 26.0, NEAR_BASE_Y - 6.0, 0.30)
@@ -89,32 +91,30 @@ func _draw_far_ground(offset: float, y0: float, y1: float) -> void:
 		x += w
 
 
-## Pásy stojaté bažinaté vody na vzdálené zemi.
-func _draw_far_water(offset: float) -> void:
+## Občas vzdálená bažina s tůněmi a rákosím místo suché země.
+func _draw_marsh(offset: float) -> void:
+	if marsh == null:
+		return
 	var size := get_viewport_rect().size
-	var step := 160.0
-	var first := int(floorf((offset - 200.0) / step))
-	var last := int(ceilf((offset + size.x + 200.0) / step))
-	var t := Time.get_ticks_msec() / 1000.0
+	var mw := float(marsh.get_width())
+	var step := 300.0
+	var first := int(floorf((offset - 400.0) / step))
+	var last := int(ceilf((offset + size.x + 400.0) / step))
 	for i in range(first, last + 1):
-		if _rnd(i, 21) < 0.2:
+		if _rnd(i, 31) < 0.45:
 			continue
-		var w := 100.0 + _rnd(i, 22) * 160.0
-		var x := roundf(i * step + _rnd(i, 23) * 60.0 - offset)
-		var y := roundf(158.0 + _rnd(i, 24) * 16.0)
-		var h := 6.0 + roundf(_rnd(i, 25) * 6.0)
-		# zubaté okraje po 4 px
-		var cx := x
-		while cx < x + w:
-			var edge := absf((cx - x) / w - 0.5) * 2.0
-			var hh := roundf(h * (1.0 - edge * edge * 0.8))
-			draw_rect(Rect2(cx, y - hh * 0.5, 4, hh), Color("40463a"))
-			draw_rect(Rect2(cx, y - hh * 0.5, 4, 1), Color("1e231c"))
-			draw_rect(Rect2(cx, y + hh * 0.5 - 1.0, 4, 1), Color("6b6e60"))
-			cx += 4.0
-		# třpyt hladiny
-		var sh := fmod(t * 6.0 + i * 3.0, w - 10.0)
-		draw_rect(Rect2(roundf(x + 5.0 + sh), y, 8, 1), Color("8a8a7a"))
+		var x := roundf(i * step + _rnd(i, 32) * 60.0 - offset)
+		var w := roundf(mw * (0.8 + _rnd(i, 33) * 0.6))
+		var src_x := roundf(_rnd(i, 34) * (mw * 0.5))
+		var y := HORIZON_Y + 6.0
+		var h := NEAR_BASE_Y + 4.0 - y
+		# měkké boční okraje: proužky s ubývající šířkou
+		for k in 6:
+			var inset := float(k) * 6.0
+			var part := Rect2(src_x + inset, 0, w - inset * 2.0, marsh.get_height())
+			var dst := Rect2(x + inset, y + 6.0 - k, w - inset * 2.0, h - 6.0 + k)
+			if k == 5:
+				draw_texture_rect_region(marsh, dst, part, Color(0.92, 0.94, 0.9))
 
 
 ## Svislý přechod mlhy (od průhledné nahoře k mlze uprostřed a zpět).

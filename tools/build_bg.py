@@ -22,7 +22,8 @@ COLORS = 40
 # Ponurá paleta: bláto, popel, špinavá oliva, zaschlá krev, kost
 GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "75624f",
         "8a7660", "222620", "30352c", "40463a", "55594f", "6b6e60", "36181a", "4e201c",
-        "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470"]
+        "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470",
+        "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
 GROUND_CROP = {"swamp": (0.30, 0.18, 0.74, 1.0)}
 
@@ -36,7 +37,7 @@ def grim(rgb):
     a = rgb.astype(float)
     # ztlumit sytost a jas
     lum = a.mean(axis=2, keepdims=True)
-    a = lum + (a - lum) * 0.62
+    a = lum + (a - lum) * 0.72
     a *= 0.97
     h, w = a.shape[:2]
     a += BAYER[np.arange(h)[:, None] % 4, np.arange(w)[None, :] % 4][..., None] * 22.0
@@ -111,6 +112,42 @@ def main(biome):
             im = Image.fromarray(crop, "RGBA")
             retro(im, (max(1, round(im.width * k)), max(1, round(im.height * k)))).save(f"{out}/obj_{objs_total}.png")
             objs_total += 1
+    # Voda: kaluže a brody na purpurovém pozadí -> water_N.png (zploštělé do perspektivy)
+    for f in os.listdir(out):
+        if f.startswith("water_"):
+            os.remove(os.path.join(out, f))
+    water_n = 0
+    wpath = f"{src}/grim_{biome}_water.png"
+    if os.path.exists(wpath):
+        m = np.asarray(Image.open(wpath).convert("RGB")).astype(int)
+        mag = (m[..., 0] > 160) & (m[..., 2] > 160) & (m[..., 1] < 120)
+        fg = ndimage.binary_opening(~mag, iterations=2)
+        lab, n = ndimage.label(fg)
+        sizes = ndimage.sum(fg, lab, range(n + 1))
+        for i in np.argsort(-sizes)[:8]:
+            if i == 0 or sizes[i] < 4000:
+                continue
+            ys, xs = np.nonzero(lab == i)
+            x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+            mask = (lab[y0:y1, x0:x1] == i)
+            crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask * 255).astype(np.uint8)])
+            im = Image.fromarray(crop, "RGBA")
+            w = 120 + 60 * (water_n % 3)
+            retro(im, (w, max(8, round(im.height * w / im.width * 0.42)))).save(f"{out}/water_{water_n}.png")
+            water_n += 1
+    # Vzdálená bažina: pás s tůněmi a rákosím (bez oblohy), měkké boční okraje
+    mpath = f"{src}/grim_{biome}_marsh.png"
+    if os.path.exists(mpath):
+        mm = Image.open(mpath).convert("RGBA")
+        mm = mm.crop((0, int(mm.height * 0.36), mm.width, mm.height))
+        ma = seamless(np.asarray(mm).astype(float))
+        marsh = retro(Image.fromarray(ma.astype(np.uint8), "RGBA"), (round(ma.shape[1] * 40 / ma.shape[0]), 40))
+        a = np.asarray(marsh).copy()
+        rows = 6
+        for y in range(rows):
+            keep = (np.arange(a.shape[1]) * 7 + y * 3) % rows < y
+            a[y, ~keep, 3] = 0
+        Image.fromarray(a, "RGBA").save(f"{out}/marsh.png")
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}
@@ -119,6 +156,7 @@ def main(biome):
         if mm:
             data = json.loads(mm.group(1))
     data[biome] = objs_total
+    data[biome + "_water"] = water_n
     with open(data_path, "w") as f:
         f.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_bg.py – počet objektů v prostřední vrstvě.\n\n")
         f.write(f"const OBJS := {json.dumps(data)}\n")

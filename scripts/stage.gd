@@ -49,6 +49,7 @@ var stage_index := 0
 var waves: Array = []
 var biome := ""
 var ground_tex: Texture2D = null
+var water_tex: Array = []
 
 var player: PlayerScript
 var fighters: Array = []
@@ -85,6 +86,8 @@ func _ready() -> void:
 		# Hrubé retro pozadí ve vrstvách s paralaxou
 		ground_tex = load("res://art/bg/%s/ground.png" % biome)
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		for wi in int(ParallaxScript.BgData.OBJS.get(biome + "_water", 0)):
+			water_tex.append(load("res://art/bg/%s/water_%d.png" % [biome, wi]))
 		var back := ParallaxScript.new()
 		back.biome = biome
 		bg_layer.add_child(back)
@@ -437,44 +440,29 @@ func _player_death() -> void:
 				f.take_hit(0, 1 if f.pos.x >= player.pos.x else -1, true, 0.0)
 
 
-## Mělké bažinaté kaluže na cestě (dá se jimi projít).
+## Kaluže a široké brody na cestě (malované, dá se jimi projít).
 func _draw_puddles() -> void:
-	var step := 230.0
-	var t := time
-	var first := int(floorf((cam_x - HALF_W - 200.0) / step))
+	if water_tex.is_empty():
+		return
+	var step := 260.0
+	var first := int(floorf((cam_x - HALF_W - 400.0) / step))
 	var last := int(ceilf((cam_x + HALF_W + 200.0) / step))
 	for i in range(first, last + 1):
 		var r1 := float(absi((i * 73856093) ^ 912367) % 1000) / 1000.0
 		var r2 := float(absi((i * 19349663) ^ 4441) % 1000) / 1000.0
-		if r1 < 0.2:
+		if r1 < 0.25:
 			continue
-		var w := 90.0 + r2 * 110.0
-		var h := 14.0 + r1 * 14.0
-		var x := i * step + r2 * 120.0
-		var y := 200.0 + r1 * 70.0
-		# dithrovaný okraj z obdélníčků 4×2 px
-		var row := 0.0
-		while row < h:
-			var k := absf(row / h - 0.5) * 2.0
-			var half := w * 0.5 * sqrt(maxf(1.0 - k * k, 0.0))
-			var rx := roundf(x + w * 0.5 - half)
-			var rw := roundf(half * 2.0)
-			var col := Color("4b5144")
-			if row < 3.0 or row > h - 3.0:
-				col = Color("1e231c")
-			elif row < h * 0.45:
-				col = Color("5c6152")
-			draw_rect(Rect2(rx, roundf(y + row), rw, 2), col)
-			row += 2.0
-		# odraz oblohy a chvění hladiny
-		draw_rect(Rect2(roundf(x + w * 0.2), roundf(y + h * 0.35), roundf(w * 0.35), 1), Color("4b5144"))
-		var sh := fmod(t * 9.0 + i * 5.0, w * 0.5)
-		draw_rect(Rect2(roundf(x + w * 0.25 + sh), roundf(y + h * 0.6), 10, 1), Color("8a8a7a"))
-		draw_rect(Rect2(roundf(x + w * 0.6 - sh * 0.5), roundf(y + h * 0.75), 6, 1), Color("6b6e60"))
-		# rákos na okraji
-		for j in 3:
-			var rx2 := roundf(x + w * (0.1 + 0.3 * j) + r1 * 6.0)
-			draw_rect(Rect2(rx2, roundf(y - 6.0 - j % 2 * 3), 1, 7 + j % 2 * 3), Color("30352c"))
+		var tex: Texture2D = water_tex[int(r2 * 997.0) % water_tex.size()]
+		var sc := 1.0 if r1 < 0.7 else 1.7   # občas široký brod
+		var w := tex.get_width() * sc
+		var h := tex.get_height() * sc
+		var x := roundf(i * step + r2 * 80.0)
+		var y := roundf(196.0 + r1 * 70.0)
+		var flip := r2 < 0.5
+		var r := Rect2(x, y, w, h)
+		if flip:
+			r = Rect2(x + w, y, -w, h)
+		draw_texture_rect(tex, r, false)
 
 
 func popup(text: String, at: Vector2, color: Color) -> void:
@@ -516,7 +504,7 @@ func _draw() -> void:
 	while x < cam_x + HALF_W + 10.0:
 		draw_texture_rect(ground_tex, Rect2(roundf(x), 300.0 - h, w, h), false)
 		x += w
-	if retro and biome == "swamp":
+	if retro:
 		_draw_puddles()
 	if retro:
 		# Hloubka: v dálce mlha, u diváka stín
