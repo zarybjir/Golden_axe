@@ -85,7 +85,7 @@ func _ready() -> void:
 	if ParallaxScript.has_biome(biome):
 		# Hrubé retro pozadí ve vrstvách s paralaxou
 		ground_tex = load("res://art/bg/%s/ground.png" % biome)
-		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		for wi in int(ParallaxScript.BgData.OBJS.get(biome + "_water", 0)):
 			water_tex.append(load("res://art/bg/%s/water_%d.png" % [biome, wi]))
 		var back := ParallaxScript.new()
@@ -454,8 +454,8 @@ func _draw_puddles() -> void:
 			continue
 		var tex: Texture2D = water_tex[int(r2 * 997.0) % water_tex.size()]
 		var sc := 1.0 if r1 < 0.7 else 1.7   # občas široký brod
-		var w := tex.get_width() * sc
-		var h := tex.get_height() * sc
+		var w := tex.get_width() / ParallaxScript.R * sc
+		var h := tex.get_height() / ParallaxScript.R * sc
 		var x := roundf(i * step + r2 * 80.0)
 		var y := roundf(196.0 + r1 * 70.0)
 		var flip := r2 < 0.5
@@ -502,7 +502,7 @@ func _draw() -> void:
 	var w := float(ground_tex.get_width()) * h / float(ground_tex.get_height())
 	var x := floorf((cam_x - HALF_W - 10.0) / w) * w
 	while x < cam_x + HALF_W + 10.0:
-		draw_texture_rect(ground_tex, Rect2(roundf(x), 300.0 - h, w, h), false)
+		draw_texture_rect(ground_tex, Rect2(x, 300.0 - h, w + 0.5, h), false)
 		x += w
 	if retro:
 		_draw_puddles()

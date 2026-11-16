@@ -45,14 +45,26 @@ def grim(rgb):
     return pal[d.argmin(axis=2)].astype(np.uint8)
 
 
+RES = 3  # textury mají 3× víc pixelů než logická velikost ve hře (ostré, ale ne kostičkované)
+
+
+def grade(rgb):
+    """Ponuré barevné ladění bez rastru: menší sytost, tmavší, lehce do zelena."""
+    a = rgb.astype(float)
+    lum = a.mean(axis=2, keepdims=True)
+    a = lum + (a - lum) * 0.72
+    a = a * 0.9
+    a[..., 1] *= 1.03
+    a[..., 2] *= 0.93
+    return np.clip(a, 0, 255).astype(np.uint8)
+
+
 def retro(im, size):
-    """Zmenší na cílovou velikost a převede na ponurou paletu (bez rozmazání)."""
+    """Zmenší na logickou velikost × RES a barevně doladí (plynulé, bez kostiček)."""
     im = im.convert("RGBA")
-    small = im.resize(size, Image.BOX)
-    rgb = Image.fromarray(grim(np.asarray(small.convert("RGB"))))
-    a = np.asarray(small)[..., 3]
-    a = np.where(a > 128, 255, 0).astype(np.uint8)
-    return Image.fromarray(np.dstack([np.asarray(rgb), a]), "RGBA")
+    big = im.resize((size[0] * RES, size[1] * RES), Image.LANCZOS)
+    arr = np.asarray(big)
+    return Image.fromarray(np.dstack([grade(arr[..., :3]), arr[..., 3]]), "RGBA")
 
 
 def seamless(arr, blend=120):
@@ -79,11 +91,8 @@ def main(biome):
     ga[..., :3] *= GROUND_DARK
     gi = retro(Image.fromarray(ga.astype(np.uint8), "RGBA"), (round(ga.shape[1] * GROUND_H / ga.shape[0]), GROUND_H))
     a = np.asarray(gi).copy()
-    rows = 14
-    # zubatý přechod (dithering) místo rovné hrany
-    for y in range(rows):
-        keep = (np.indices(a.shape[:2])[1][y] * 7 + y * 3) % rows < y
-        a[y, ~keep, 3] = 0
+    rows = 14 * RES
+    a[:rows, :, 3] = (a[:rows, :, 3] * np.linspace(0, 1, rows)[:, None]).astype(np.uint8)
     Image.fromarray(a, "RGBA").save(f"{out}/ground.png")
     # Objekty na zeleném pozadí (může jich být víc listů: _mid, _mid2, _mid3 ...)
     for f in os.listdir(out):
@@ -135,12 +144,10 @@ def main(biome):
             w = 120 + 60 * (water_n % 3)
             wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.42))))
             wa = np.asarray(wim).copy()
-            # rozpitý okraj: vnější 3 px řídnou v rastru
+            # rozpitý okraj: plynulé zeslábnutí 5 px
             solid = wa[..., 3] > 0
             dist = ndimage.distance_transform_edt(solid)
-            yy, xx = np.indices(solid.shape)
-            dith = ((xx * 5 + yy * 3) % 4) / 4.0
-            wa[..., 3] = np.where(solid & (dist < 4) & (dist / 4.0 < dith + 0.15), 0, wa[..., 3])
+            wa[..., 3] = (wa[..., 3] * np.clip(dist / (5 * RES), 0, 1)).astype(np.uint8)
             Image.fromarray(wa, "RGBA").save(f"{out}/water_{water_n}.png")
             water_n += 1
     # Vzdálená bažina: pás s tůněmi a rákosím (bez oblohy), měkké boční okraje
@@ -151,24 +158,19 @@ def main(biome):
         ma = np.asarray(mm).astype(float)
         ma[..., :3] *= 0.85
         marsh = retro(Image.fromarray(ma.astype(np.uint8), "RGBA"), (round(ma.shape[1] * 40 / ma.shape[0]), 40))
-        a = np.asarray(marsh).copy()
-        rows = 6
-        for y in range(rows):
-            keep = (np.arange(a.shape[1]) * 7 + y * 3) % rows < y
-            a[y, ~keep, 3] = 0
-        # zubaté boční okraje (rastrované zeslábnutí přes 60 px)
-        fade = 60
-        xx = np.arange(a.shape[1])
-        edge = np.minimum(xx, a.shape[1] - 1 - xx) / fade
-        for y in range(a.shape[0]):
-            thr = ((xx * 7 + y * 5) % 9) / 9.0
-            a[y, (edge < 1.0) & (edge < thr), 3] = 0
+        a = np.asarray(marsh).copy().astype(float)
+        hh, ww = a.shape[:2]
+        top = np.clip(np.arange(hh) / (8 * RES), 0, 1)[:, None]
+        xx = np.arange(ww)
+        side = np.clip(np.minimum(xx, ww - 1 - xx) / (60 * RES), 0, 1)[None, :]
+        a[..., 3] *= top * side
+        a = a.astype(np.uint8)
         Image.fromarray(a, "RGBA").save(f"{out}/marsh.png")
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}
     if os.path.exists(data_path):
-        mm = re.search(r"const OBJS := (\{.*\})", open(data_path).read())
+        mm = re.search(r"const OBJS := (\{.*?\})\n", open(data_path).read())
         if mm:
             data = json.loads(mm.group(1))
     data[biome] = objs_total
@@ -176,6 +178,7 @@ def main(biome):
     with open(data_path, "w") as f:
         f.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_bg.py – počet objektů v prostřední vrstvě.\n\n")
         f.write(f"const OBJS := {json.dumps(data)}\n")
+        f.write(f"const RES := {RES}.0  # pixelů textury na 1 logický pixel\n")
     print(biome, "objektů:", objs_total)
 
 

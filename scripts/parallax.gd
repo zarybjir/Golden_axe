@@ -10,15 +10,20 @@ var biome := "swamp"
 var mode := "back"
 var sky: Texture2D
 var objs: Array = []
+var tall: Array = []   # vysoké objekty (stromy, šibenice) pro nejbližší řadu
 var ground: Texture2D
 var marsh: Texture2D = null
 
 const SKY_SPEED := 0.15
 const MID_SPEED := 0.55
 const FRONT_SPEED := 1.35
-const MID_STEP := 150.0
+const MID_STEP := 110.0
+const CLOSE_SPEED := 0.8
+const CLOSE_STEP := 240.0
+const CLOSE_BASE_Y := 196.0
+const R := BgData.RES
 const FAR_SPEED := 0.32
-const FAR_STEP := 85.0
+const FAR_STEP := 55.0
 const HORIZON_Y := 150.0
 const FAR_BASE_Y := 166.0
 const NEAR_BASE_Y := 184.0
@@ -26,14 +31,19 @@ const FRONT_STEP := 520.0
 
 
 func _ready() -> void:
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	sky = load("res://art/bg/%s/sky.png" % biome)
 	ground = load("res://art/bg/%s/ground.png" % biome)
 	if ResourceLoader.exists("res://art/bg/%s/marsh.png" % biome):
 		marsh = load("res://art/bg/%s/marsh.png" % biome)
 	var n: int = BgData.OBJS.get(biome, 0)
 	for i in n:
-		objs.append(load("res://art/bg/%s/obj_%d.png" % [biome, i]))
+		var t: Texture2D = load("res://art/bg/%s/obj_%d.png" % [biome, i])
+		objs.append(t)
+		if t.get_height() > t.get_width() * 1.05:
+			tall.append(t)
+	if tall.is_empty():
+		tall = objs
 
 
 static func has_biome(b: String) -> bool:
@@ -63,10 +73,11 @@ func _draw() -> void:
 	if mode == "back":
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.03, 0.04))
 		# 1) Nebe a obzor – nejpomaleji
-		var sw := float(sky.get_width())
+		var sw := float(sky.get_width()) / R
+		var sh := float(sky.get_height()) / R
 		var sx := -fposmod(left * SKY_SPEED, sw)
 		while sx < size.x:
-			draw_texture(sky, Vector2(roundf(sx), 0.0))
+			draw_texture_rect(sky, Rect2(sx, 0.0, sw + 0.5, sh), false)
 			sx += sw
 		# 2) Vzdálená země (perspektivně zploštělá) – na ní stojí vzdálené objekty
 		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, NEAR_BASE_Y + 4.0)
@@ -76,6 +87,8 @@ func _draw() -> void:
 		_fog(HORIZON_Y - 26.0, NEAR_BASE_Y - 6.0, 0.30)
 		# 4) Bližší řada objektů
 		_draw_objects(left * MID_SPEED, MID_STEP, NEAR_BASE_Y, 1.5, Color(0.86, 0.84, 0.82), 0)
+		# 5) Nejbližší velké stromy přímo za cestou – přesahují horní okraj obrazu
+		_draw_objects(left * CLOSE_SPEED, CLOSE_STEP, CLOSE_BASE_Y, 2.7, Color(0.7, 0.68, 0.66), 41, true)
 	else:
 		_draw_objects(left * FRONT_SPEED, FRONT_STEP, size.y + 18.0, 1.5, Color(0.06, 0.04, 0.05, 0.92), 7)
 
@@ -84,7 +97,7 @@ func _draw_far_ground(offset: float, y0: float, y1: float) -> void:
 	if ground == null:
 		return
 	var h := y1 - y0
-	var w := float(ground.get_width()) * 0.7
+	var w := float(ground.get_width()) / R * 0.7
 	var x := -fposmod(offset, w)
 	while x < get_viewport_rect().size.x:
 		draw_texture_rect(ground, Rect2(roundf(x), y0, w, h), false, Color(0.72, 0.7, 0.68))
@@ -96,7 +109,7 @@ func _draw_marsh(offset: float) -> void:
 	if marsh == null:
 		return
 	var size := get_viewport_rect().size
-	var mw := float(marsh.get_width())
+	var mw := float(marsh.get_width()) / R
 	var step := 260.0
 	var first := int(floorf((offset - 400.0) / step))
 	var last := int(ceilf((offset + size.x + 400.0) / step))
@@ -131,21 +144,22 @@ func _fog(y0: float, y1: float, strength: float) -> void:
 		draw_rect(Rect2(0, a2, w, b2 - a2 + 1), c)
 
 
-func _draw_objects(offset: float, step: float, base_y: float, scale: float, mod: Color, salt: int) -> void:
-	if objs.is_empty():
+func _draw_objects(offset: float, step: float, base_y: float, scale: float, mod: Color, salt: int, only_tall: bool = false) -> void:
+	var pool: Array = tall if only_tall else objs
+	if pool.is_empty():
 		return
 	var size := get_viewport_rect().size
 	var first := int(floorf((offset - 200.0) / step))
 	var last := int(ceilf((offset + size.x + 200.0) / step))
 	for i in range(first, last + 1):
-		if mode == "front" and _rnd(i, salt + 3) < 0.45:
+		if (mode == "front" or only_tall) and _rnd(i, salt + 3) < 0.45:
 			continue
-		var tex: Texture2D = objs[int(_rnd(i, salt) * objs.size()) % objs.size()]
+		var tex: Texture2D = pool[int(_rnd(i, salt) * pool.size()) % pool.size()]
 		var x := i * step + _rnd(i, salt + 1) * step * 0.6 - offset
 		var flip := _rnd(i, salt + 2) < 0.5
-		var w := tex.get_width() * scale
-		var h := tex.get_height() * scale
-		var r := Rect2(roundf(x), roundf(base_y - h), w, h)
+		var w := tex.get_width() / R * scale
+		var h := tex.get_height() / R * scale
+		var r := Rect2(x, base_y - h, w, h)
 		if flip:
 			r = Rect2(r.position.x + w, r.position.y, -w, h)
 		draw_texture_rect(tex, r, false, mod)
