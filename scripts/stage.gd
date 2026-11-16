@@ -378,7 +378,7 @@ func magic_blast(p: Node2D, power: int) -> void:
 
 
 func _divine_strike(p: Node2D, power: int, hit_list: Array, mode: String) -> void:
-	flash_t = 0.45 if mode == "lightning" else 0.2
+	flash_t = 0.25 if mode == "lightning" else 0.12
 	shake(7.0, 0.6)
 	hitstop = 10
 	for f in hit_list:

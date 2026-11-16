@@ -28,14 +28,27 @@ func _ready() -> void:
 	fire = load("res://art/fx/fire.webp")
 	bolts = [load("res://art/fx/lightning_0.webp"), load("res://art/fx/lightning_1.webp")]
 	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	if mode == "fire":
+		z_index = 150   # oheň za postavami (postavy mají z_index = y >= 196)
+		return
 	if mode == "dragon":
 		Sfx.play("roar", 0.6)
+		# oheň jako samostatná vrstva za postavami, hlava zůstává nahoře
+		var f := duplicate()
+		f.mode = "fire"
+		f.stage = stage
+		get_parent().add_child.call_deferred(f)
 	else:
 		Sfx.play("thunder")
 
 
 func _process(delta: float) -> void:
 	t += delta
+	if mode == "fire":
+		if t > LIFE_DRAGON:
+			queue_free()
+		queue_redraw()
+		return
 	var strike_at := STRIKE_DRAGON if mode == "dragon" else STRIKE_LIGHTNING
 	if not struck and t >= strike_at:
 		struck = true
@@ -47,14 +60,14 @@ func _process(delta: float) -> void:
 	# další údery hromu při blikání blesků
 	if mode == "lightning" and struck and fmod(t, 0.25) < delta:
 		stage.shake(4.0, 0.12)
-		stage.flash_t = maxf(stage.flash_t, 0.12)
+		stage.flash_t = maxf(stage.flash_t, 0.06)
 	if t > (LIFE_DRAGON if mode == "dragon" else LIFE_LIGHTNING):
 		queue_free()
 	queue_redraw()
 
 
 func _draw() -> void:
-	if mode == "dragon":
+	if mode == "dragon" or mode == "fire":
 		_draw_dragon()
 	else:
 		_draw_lightning()
@@ -77,8 +90,7 @@ func _draw_lightning() -> void:
 		var r := Rect2(p.x - w * 0.5, -30.0, w, h)
 		draw_texture_rect(tex, r, false, Color(1, 1, 1, fade))
 		# záře kolem sloupu a v místě dopadu
-		draw_circle(Vector2(p.x, p.y - 4.0), 26.0, Color(0.6, 0.85, 1.0, 0.25 * fade))
-		draw_circle(Vector2(p.x, p.y - 4.0), 12.0, Color(0.9, 0.97, 1.0, 0.5 * fade))
+		draw_circle(Vector2(p.x, p.y - 2.0), 7.0, Color(0.85, 0.95, 1.0, 0.55 * fade))
 
 
 func _draw_dragon() -> void:
@@ -98,7 +110,9 @@ func _draw_dragon() -> void:
 		shake = Vector2(randf_range(-2.0, 2.0), randf_range(-2.0, 2.0))
 	var hx := left - hw + slide * (hw * 0.62) + shake.x
 	var hy := 40.0 + shake.y
-	draw_texture_rect(head, Rect2(hx, hy, hw, hh), false, Color(1, 1, 1, 0.92 * fade))
+	if mode == "dragon":
+		draw_texture_rect(head, Rect2(hx, hy, hw, hh), false, Color(1, 1, 1, 0.92 * fade))
+		return
 	# oheň z tlamy přes celou šířku obrazovky
 	if t > STRIKE_DRAGON - 0.05:
 		var k := clampf((t - STRIKE_DRAGON + 0.05) / 0.3, 0.0, 1.0)
