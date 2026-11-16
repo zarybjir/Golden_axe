@@ -382,6 +382,17 @@ func _take_shots() -> void:
 	stage.debug_jump_to_wave(1)
 	await _wait(2.4)
 	_save_shot("2a_netopyri")
+	# topení v tůni (pro kontrolu)
+	var pls: Array = stage._pools(stage.cam_x - 230.0, stage.cam_x + 230.0)
+	for pl in pls:
+		var rr: Rect2 = pl[0]
+		if absf(rr.get_center().x - stage.cam_x) < 200.0:
+			stage.player.pos = rr.get_center()
+			stage.player.set_state(Fighter.S.IDLE)
+			await _wait(0.55)
+			_save_shot("2d_topeni")
+			await _wait(1.5)
+			break
 	start_stage(1)
 	stage.debug_jump_to_wave(0)
 	await _wait(2.6)
