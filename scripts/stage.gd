@@ -462,7 +462,7 @@ func _draw_puddles() -> void:
 		var r := Rect2(x, y, w, h)
 		if flip:
 			r = Rect2(x + w, y, -w, h)
-		draw_texture_rect(tex, r, false)
+		draw_texture_rect(tex, r, false, Color(0.78, 0.82, 0.78))
 
 
 func popup(text: String, at: Vector2, color: Color) -> void:

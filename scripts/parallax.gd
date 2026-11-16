@@ -97,24 +97,20 @@ func _draw_marsh(offset: float) -> void:
 		return
 	var size := get_viewport_rect().size
 	var mw := float(marsh.get_width())
-	var step := 300.0
+	var step := 260.0
 	var first := int(floorf((offset - 400.0) / step))
 	var last := int(ceilf((offset + size.x + 400.0) / step))
 	for i in range(first, last + 1):
 		if _rnd(i, 31) < 0.45:
 			continue
 		var x := roundf(i * step + _rnd(i, 32) * 60.0 - offset)
-		var w := roundf(mw * (0.8 + _rnd(i, 33) * 0.6))
-		var src_x := roundf(_rnd(i, 34) * (mw * 0.5))
-		var y := HORIZON_Y + 6.0
+		var w := roundf(mw * (0.7 + _rnd(i, 33) * 0.5))
+		var y := HORIZON_Y + 4.0
 		var h := NEAR_BASE_Y + 4.0 - y
-		# měkké boční okraje: proužky s ubývající šířkou
-		for k in 6:
-			var inset := float(k) * 6.0
-			var part := Rect2(src_x + inset, 0, w - inset * 2.0, marsh.get_height())
-			var dst := Rect2(x + inset, y + 6.0 - k, w - inset * 2.0, h - 6.0 + k)
-			if k == 5:
-				draw_texture_rect_region(marsh, dst, part, Color(0.92, 0.94, 0.9))
+		var r := Rect2(x, y, w, h)
+		if _rnd(i, 34) < 0.5:
+			r = Rect2(x + w, y, -w, h)
+		draw_texture_rect(marsh, r, false, Color(0.85, 0.88, 0.84))
 
 
 ## Svislý přechod mlhy (od průhledné nahoře k mlze uprostřed a zpět).

@@ -133,20 +133,36 @@ def main(biome):
             crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask * 255).astype(np.uint8)])
             im = Image.fromarray(crop, "RGBA")
             w = 120 + 60 * (water_n % 3)
-            retro(im, (w, max(8, round(im.height * w / im.width * 0.42)))).save(f"{out}/water_{water_n}.png")
+            wim = retro(im, (w, max(8, round(im.height * w / im.width * 0.42))))
+            wa = np.asarray(wim).copy()
+            # rozpitý okraj: vnější 3 px řídnou v rastru
+            solid = wa[..., 3] > 0
+            dist = ndimage.distance_transform_edt(solid)
+            yy, xx = np.indices(solid.shape)
+            dith = ((xx * 5 + yy * 3) % 4) / 4.0
+            wa[..., 3] = np.where(solid & (dist < 4) & (dist / 4.0 < dith + 0.15), 0, wa[..., 3])
+            Image.fromarray(wa, "RGBA").save(f"{out}/water_{water_n}.png")
             water_n += 1
     # Vzdálená bažina: pás s tůněmi a rákosím (bez oblohy), měkké boční okraje
     mpath = f"{src}/grim_{biome}_marsh.png"
     if os.path.exists(mpath):
         mm = Image.open(mpath).convert("RGBA")
         mm = mm.crop((0, int(mm.height * 0.36), mm.width, mm.height))
-        ma = seamless(np.asarray(mm).astype(float))
+        ma = np.asarray(mm).astype(float)
+        ma[..., :3] *= 0.85
         marsh = retro(Image.fromarray(ma.astype(np.uint8), "RGBA"), (round(ma.shape[1] * 40 / ma.shape[0]), 40))
         a = np.asarray(marsh).copy()
         rows = 6
         for y in range(rows):
             keep = (np.arange(a.shape[1]) * 7 + y * 3) % rows < y
             a[y, ~keep, 3] = 0
+        # zubaté boční okraje (rastrované zeslábnutí přes 60 px)
+        fade = 60
+        xx = np.arange(a.shape[1])
+        edge = np.minimum(xx, a.shape[1] - 1 - xx) / fade
+        for y in range(a.shape[0]):
+            thr = ((xx * 7 + y * 5) % 9) / 9.0
+            a[y, (edge < 1.0) & (edge < thr), 3] = 0
         Image.fromarray(a, "RGBA").save(f"{out}/marsh.png")
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
