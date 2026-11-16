@@ -177,6 +177,7 @@ func _wants_block(knock: bool) -> bool:
 func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
 	if _wants_block(knock):
 		blocking = true
+		hurt_len = 40   # krytí se přehraje celé
 		set_state(S.HURT)
 		facing = -dir
 		vel = Vector2(dir * 40.0, 0.0)
@@ -186,6 +187,7 @@ func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
 		stage.popup("BLOK", pos + Vector2(-8, -hy - 10.0), Color("c8c8d0"))
 		return
 	blocking = false
+	hurt_len = 16
 	super.take_hit(dmg, dir, knock, push)
 
 
@@ -208,7 +210,7 @@ func _anim_pick() -> Array:
 			return ["attack", _move_frame("attack"), 0.0]
 		S.HURT:
 			if blocking:
-				return ["block", state_t * anim_tex["block"].size() / 16, 0.0]
+				return ["block", state_t * anim_tex["block"].size() / hurt_len, 0.0]
 			return ["idle", 0, -0.1]
 		S.DOWN:
 			return ["fall", state_t / 5, 0.0]   # 12 snímků/s jako ve videu

@@ -303,7 +303,9 @@ func _clamp_all() -> void:
 		if not f.entered and f.pos.x > left + 12.0 and f.pos.x < right - 12.0:
 			f.entered = true
 		if f.entered and f.state != Fighter.S.DOWN:
-			f.pos.x = clampf(f.pos.x, left + 6.0, right - 6.0)
+			# do obrazovky se vrací plynule (žádné skoky)
+			var cx := clampf(f.pos.x, left + 6.0, right - 6.0)
+			f.pos.x = move_toward(f.pos.x, cx, 180.0 * Fighter.DT)
 		if f.get("rideable") == true and f.rider == player:
 			f.entered = true
 

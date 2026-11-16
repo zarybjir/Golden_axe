@@ -54,6 +54,7 @@ var rig_tex := {}
 var anim_tex := {}
 var anim_clock := 0.0
 var anim_set: Dictionary = {}
+var hurt_len := 16      # jak dlouho trvá zaškobrtnutí / krytí
 var down_len := 40      # jak dlouho leží (snímky)
 var getup_len := 18     # jak dlouho vstává
 var flying := false     # létající nepřítel (netopýr) – bez gravitace
@@ -134,7 +135,7 @@ func physics_step() -> void:
 
 	match state:
 		S.HURT:
-			if state_t >= 16:
+			if state_t >= hurt_len:
 				set_state(S.IDLE)
 		S.DOWN:
 			if z <= 0.0:
