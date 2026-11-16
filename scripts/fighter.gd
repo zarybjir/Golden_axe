@@ -110,7 +110,7 @@ func _drown_step() -> void:
 	drown_t += 1
 	vel = Vector2.ZERO
 	# postava klesá, část pod hladinou se nekreslí (ořez v _draw_anim)
-	sink = minf(float(drown_t) * 2.2, 140.0)
+	sink = minf(float(drown_t) * 1.5, 140.0)
 	if anim_tex.is_empty():
 		modulate.a = clampf(1.0 - float(drown_t - 10) / 40.0, 0.0, 1.0)
 	if drown_t % 6 == 0 and stage != null:
