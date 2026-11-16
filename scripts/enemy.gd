@@ -10,6 +10,15 @@ const KINDS := {
 	"ghoul": {"hp": 30, "range": 46.0, "speed": Vector2(88, 52), "reach": 20.0, "attack": "ghoul_atk", "cool": 40,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 120,
 		"sprite": "lidojed", "h": 100.0},
+	"spider": {"hp": 30, "range": 56.0, "speed": Vector2(78, 46), "reach": 20.0, "attack": "spider_stab", "cool": 44,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 150,
+		"sprite": "pavouk", "h": 64.0, "hit_w": 16.0},
+	"vine": {"hp": 70, "range": 190.0, "speed": Vector2(22, 16), "reach": 20.0, "attack": "vine_lash", "cool": 80,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 250,
+		"sprite": "lianovec", "h": 124.0, "hit_w": 12.0},
+	"native": {"hp": 22, "range": 60.0, "speed": Vector2(130, 76), "reach": 20.0, "attack": "native_jab", "cool": 26,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 120,
+		"sprite": "domorodec", "h": 62.0},
 	"bat": {"hp": 16, "range": 38.0, "speed": Vector2(120, 70), "reach": 20.0, "attack": "bat_swoop", "cool": 50,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 140,
 		"sprite": "netopyr", "h": 62.0, "fly": true, "hit_w": 14.0},
@@ -270,31 +279,106 @@ func _draw() -> void:
 		draw_texture(sprite_tex, Vector2(-sprite_tex.get_width() * 0.5, -sprite_tex.get_height() * 0.5), mod)
 		draw_set_transform_matrix(Transform2D.IDENTITY)
 	else:
-		match state:
-			S.WALK:
-				off.y = -absf(sin(t * 9.0)) * 3.0
-				rot = sin(t * 9.0) * 0.05
-			S.IDLE:
-				sy = 1.0 + sin(t * 2.5) * 0.012
-			S.ATTACK:
-				var h: Array = move["hit"]
-				var k := clampf(float(state_t) / float(h[0]), 0.0, 1.0)
-				if state_t < int(h[0]):
-					rot = -0.12 * k            # nápřah dozadu
-				else:
-					var r := 1.0 - clampf(float(state_t - int(h[1])) / 12.0, 0.0, 1.0)
-					rot = 0.28 * r             # výpad s noži dopředu
-					off.x = 14.0 * r
-			S.HURT:
-				rot = -0.2
-				off.x = -4.0
-			S.DOWN, S.DEAD:
-				rot = -minf(float(state_t) / 10.0, 1.0) * 1.45
-			S.GETUP:
-				rot = -1.45 * (1.0 - minf(float(state_t) / 18.0, 1.0))
+		var custom := _sprite_pose(t)
+		if not custom.is_empty():
+			rot = custom[0]
+			off = custom[1]
+		else:
+			match state:
+				S.WALK:
+					off.y = -absf(sin(t * 9.0)) * 3.0
+					rot = sin(t * 9.0) * 0.05
+				S.IDLE:
+					sy = 1.0 + sin(t * 2.5) * 0.012
+				S.ATTACK:
+					var h: Array = move["hit"]
+					var k := clampf(float(state_t) / float(h[0]), 0.0, 1.0)
+					if state_t < int(h[0]):
+						rot = -0.12 * k            # nápřah dozadu
+					else:
+						var r := 1.0 - clampf(float(state_t - int(h[1])) / 12.0, 0.0, 1.0)
+						rot = 0.28 * r             # výpad s noži dopředu
+						off.x = 14.0 * r
+				S.HURT:
+					rot = -0.2
+					off.x = -4.0
+				S.DOWN, S.DEAD:
+					rot = -minf(float(state_t) / 10.0, 1.0) * 1.45
+				S.GETUP:
+					rot = -1.45 * (1.0 - minf(float(state_t) / 18.0, 1.0))
 		var xf2 := Transform2D(0.0, Vector2(facing, 1.0), 0.0, Vector2.ZERO) \
 			* Transform2D(rot, off) * Transform2D(0.0, Vector2(sx * sc, sy * sc), 0.0, Vector2.ZERO)
 		draw_set_transform_matrix(xf2)
 		draw_texture(sprite_tex, Vector2(-sprite_tex.get_width() * 0.5, -sprite_tex.get_height()), mod)
 		draw_set_transform_matrix(Transform2D.IDENTITY)
+		if kind == "vine" and state == S.ATTACK:
+			_draw_vine_arm()
 	_draw_extra()
+
+
+# ---------------------------------------------------------------- džungle: pavouk, liánovec, domorodec
+
+## Zvláštní pózy: [rotace, posun] nebo prázdné pole = výchozí.
+func _sprite_pose(t: float) -> Array:
+	if state == S.ATTACK and not move.is_empty():
+		var h: Array = move["hit"]
+		var h0 := float(h[0])
+		var st := float(state_t)
+		match kind:
+			"spider":
+				# vztyčí se na zadní nohy, pak bodne předními
+				if st < h0:
+					return [-0.55 * minf(st / (h0 * 0.7), 1.0), Vector2(-6.0, 0.0)]
+				var r := 1.0 - clampf((st - float(h[1])) / 12.0, 0.0, 1.0)
+				return [0.18 * r, Vector2(20.0 * r, 0.0)]
+			"native":
+				if st < h0:
+					return [-0.1, Vector2(-5.0, 0.0)]
+				var r2 := 1.0 - clampf((st - float(h[1])) / 8.0, 0.0, 1.0)
+				return [0.06 * r2, Vector2(24.0 * r2, 0.0)]
+			"vine":
+				return [-0.08 if st < h0 else 0.04, Vector2.ZERO]
+	match kind:
+		"spider":
+			if state == S.WALK:
+				return [sin(t * 14.0) * 0.03, Vector2(0.0, -absf(sin(t * 14.0)) * 1.5)]
+		"native":
+			if state == S.WALK:
+				return [sin(t * 16.0) * 0.04, Vector2(0.0, -absf(sin(t * 16.0)) * 4.0)]
+		"vine":
+			if state == S.WALK or state == S.IDLE:
+				return [sin(t * 1.6) * 0.04, Vector2.ZERO]
+	return []
+
+
+## Liánová paže: vystřelí až k hrdinovi a zase se stáhne.
+func _draw_vine_arm() -> void:
+	var h: Array = move["hit"]
+	var st := float(state_t)
+	var reach := float(cfg["range"])
+	var ext := 0.0
+	if st >= 28.0 and st < 36.0:
+		ext = (st - 28.0) / 8.0
+	elif st >= 36.0 and st < 46.0:
+		ext = 1.0
+	elif st >= 46.0 and st < 62.0:
+		ext = 1.0 - (st - 46.0) / 16.0
+	if ext <= 0.0:
+		return
+	var start := Vector2(facing * 14.0, -sprite_h * 0.55)
+	var tip := Vector2(facing * (14.0 + reach * ext), -24.0)
+	var pts := PackedVector2Array()
+	var n := 18
+	for i in n + 1:
+		var k := float(i) / n
+		var p := start.lerp(tip, k)
+		p.y += sin(k * 9.0 + anim_clock * 14.0) * 5.0 * (1.0 - k * 0.6) * ext
+		pts.append(p)
+	draw_polyline(pts, Color("2a2a18"), 7.0)
+	draw_polyline(pts, Color("4a4a2a"), 4.0)
+	for i in range(2, n, 3):
+		var p2: Vector2 = pts[i]
+		draw_colored_polygon(PackedVector2Array([p2 + Vector2(-2, 0), p2 + Vector2(2, 0), p2 + Vector2(facing * 1.0, -6.0)]), Color("1e1e12"))
+	draw_circle(tip, 5.0, Color("2a2a18"))
+	draw_line(tip, tip + Vector2(facing * 9.0, -4.0), Color("1e1e12"), 2.0)
+	draw_line(tip, tip + Vector2(facing * 9.0, 4.0), Color("1e1e12"), 2.0)

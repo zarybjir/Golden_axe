@@ -89,8 +89,17 @@ func show_title() -> void:
 		add_child(title_bg)
 	_show_menu("KLADIVO", "Kovářova pomsta", [
 		["Hrát", start_game],
+		["Výběr úrovně", show_stage_select],
 		["Ukončit hru", quit_game],
 	], "X – úder (opakuj pro kombo)   A – skok   B – úskok\nY – runová magie   Start – pauza", false)
+
+
+func show_stage_select() -> void:
+	var items: Array = []
+	for i in StageScript.STAGES.size():
+		items.append(["%d. %s" % [i + 1, StageScript.STAGES[i]["name"]], start_stage.bind(i)])
+	items.append(["Zpět", show_title])
+	_show_menu("Výběr úrovně", "", items, "", false)
 
 
 func start_game() -> void:
@@ -409,6 +418,9 @@ func _take_shots() -> void:
 	await _wait(0.85)
 	_save_shot("2e_past")
 	await _wait(1.6)
+	stage.debug_jump_to_wave(1)
+	await _wait(3.2)
+	_save_shot("2f_lianovec")
 	start_stage(3)
 	stage.debug_jump_to_wave(1)
 	await _wait(2.6)

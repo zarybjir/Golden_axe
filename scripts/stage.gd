@@ -37,10 +37,10 @@ const STAGES := [
 		"logs": [600.0, 1090.0, 1540.0],
 		"traps": [[380.0, 250.0], [780.0, 215.0], [940.0, 268.0], [1220.0, 232.0], [1400.0, 272.0], [1700.0, 222.0]],
 		"waves": [
-		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1], ["ghoul", -1]]},
-		{"x": 860.0, "enemies": [["rider", 1], ["rider", -1]]},
-		{"x": 1300.0, "enemies": [["skeleton", 1], ["ghoul", -1], ["skeleton", -1], ["ghoul", 1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["ghoul", -1], ["ghoul", 1]], "boss": true},
+		{"x": 420.0, "enemies": [["native", 1], ["native", -1], ["spider", 1]]},
+		{"x": 860.0, "enemies": [["vine", 1], ["native", -1], ["spider", -1]]},
+		{"x": 1300.0, "enemies": [["spider", 1], ["spider", -1], ["native", 1], ["vine", -1]]},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["vine", -1], ["native", 1]], "boss": true},
 	]},
 	{"name": "Horský průsmyk", "biome": "mountain", "waves": [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", 1]]},
