@@ -57,7 +57,7 @@ func _ready() -> void:
 		setup_anims(EnemyAnims.SETS[kind]["anims"], EnemyAnims.SETS[kind]["k"])
 		if anim_tex.has("fall"):
 			# pád ve skutečné rychlosti videa, pak chvíli leží a pomalu vstává
-			down_len = anim_tex["fall"].size() * 5 + 35
+			down_len = anim_tex["fall"].size() * 3 / 2 + 35
 			getup_len = 60 if kind == "ogre" else 45
 	slot = randf_range(-40.0, 40.0)
 
@@ -213,7 +213,7 @@ func _anim_pick() -> Array:
 				return ["block", state_t * anim_tex["block"].size() / hurt_len, 0.0]
 			return ["idle", 0, -0.1]
 		S.DOWN:
-			return ["fall", state_t / 5, 0.0]   # 12 snímků/s jako ve videu
+			return ["fall", state_t * 2 / 3, 0.0]
 		S.DEAD:
 			return ["fall", 999, 0.0]
 		S.GETUP:
