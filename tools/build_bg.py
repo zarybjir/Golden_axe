@@ -25,7 +25,7 @@ GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "7
         "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470",
         "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
-GROUND_CROP = {"swamp": (0.30, 0.18, 0.74, 1.0)}
+GROUND_CROP = {"swamp": (0.0, 0.47, 1.0, 1.0)}
 
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5
@@ -154,7 +154,7 @@ def main(biome):
     mpath = f"{src}/grim_{biome}_marsh.png"
     if os.path.exists(mpath):
         mm = Image.open(mpath).convert("RGBA")
-        mm = mm.crop((0, int(mm.height * 0.36), mm.width, mm.height))
+        mm = mm.crop((0, int(mm.height * 0.42), mm.width, mm.height))
         ma = np.asarray(mm).astype(float)
         ma[..., :3] *= 0.85
         marsh = retro(Image.fromarray(ma.astype(np.uint8), "RGBA"), (round(ma.shape[1] * 40 / ma.shape[0]), 40))

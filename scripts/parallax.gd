@@ -88,7 +88,7 @@ func _draw() -> void:
 		# 4) Bližší řada objektů
 		_draw_objects(left * MID_SPEED, MID_STEP, NEAR_BASE_Y, 1.5, Color(0.86, 0.84, 0.82), 0)
 		# 5) Nejbližší velké stromy přímo za cestou – přesahují horní okraj obrazu
-		_draw_objects(left * CLOSE_SPEED, CLOSE_STEP, CLOSE_BASE_Y, 2.7, Color(0.7, 0.68, 0.66), 41, true)
+		_draw_objects(left * CLOSE_SPEED, CLOSE_STEP, CLOSE_BASE_Y, 3.6, Color(0.62, 0.6, 0.58), 41, true)
 	else:
 		_draw_objects(left * FRONT_SPEED, FRONT_STEP, size.y + 18.0, 1.5, Color(0.06, 0.04, 0.05, 0.92), 7)
 
