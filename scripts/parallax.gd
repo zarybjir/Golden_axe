@@ -14,7 +14,7 @@ var objs: Array = []
 const SKY_SPEED := 0.15
 const MID_SPEED := 0.55
 const FRONT_SPEED := 1.35
-const MID_STEP := 150.0
+const MID_STEP := 95.0
 const FRONT_STEP := 520.0
 
 
@@ -57,7 +57,8 @@ func _draw() -> void:
 		while sx < size.x:
 			draw_texture(sky, Vector2(roundf(sx), 0.0))
 			sx += sw
-		_draw_objects(left * MID_SPEED, MID_STEP, 160.0, 1.0, Color(0.78, 0.78, 0.82), 0)
+		# Vzdálené objekty: menší, ztmavlé a zahalené do oparu
+		_draw_objects(left * MID_SPEED, MID_STEP, 156.0, 1.0, Color(0.55, 0.36, 0.38), 0)
 	else:
 		_draw_objects(left * FRONT_SPEED, FRONT_STEP, size.y + 18.0, 1.5, Color(0.06, 0.04, 0.05, 0.92), 7)
 

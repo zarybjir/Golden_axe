@@ -16,7 +16,8 @@ from scipy import ndimage
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKY_H = 200      # výška oblohy ve hře (logické px)
 GROUND_H = 150   # výška pásu země
-OBJ_H = 130      # výška největšího objektu v prostřední vrstvě
+GROUND_DARK = 0.68  # ztmavení země
+OBJ_H = 78       # výška největšího objektu v prostřední vrstvě (malé = daleko)
 COLORS = 40
 
 
@@ -50,6 +51,7 @@ def main(biome):
     g = Image.open(f"{src}/grim_{biome}_ground.png").convert("RGBA")
     g = g.crop((0, int(g.height * 0.08), g.width, g.height))
     ga = seamless(np.asarray(g).astype(float))
+    ga[..., :3] *= GROUND_DARK
     gi = retro(Image.fromarray(ga.astype(np.uint8), "RGBA"), (round(ga.shape[1] * GROUND_H / ga.shape[0]), GROUND_H))
     a = np.asarray(gi).copy()
     rows = 14
