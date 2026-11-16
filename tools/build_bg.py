@@ -25,7 +25,7 @@ GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "7
         "642a22", "7e3a2a", "8c7f68", "a89a7e", "4a4a52", "686470",
         "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
-GROUND_CROP = {"swamp": (0.0, 0.47, 1.0, 1.0)}
+GROUND_CROP = {"swamp": (0.0, 0.32, 1.0, 1.0)}
 
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5
@@ -152,7 +152,13 @@ def main(biome):
     wpath = f"{src}/grim_{biome}_water.png"
     if os.path.exists(wpath):
         m = np.asarray(Image.open(wpath).convert("RGB")).astype(int)
-        mag = (m[..., 0] > 160) & (m[..., 2] > 160) & (m[..., 1] < 120)
+        mag = (m[..., 0] > 110) & (m[..., 2] > 100) & (m[..., 1] < 0.72 * np.minimum(m[..., 0], m[..., 2]))
+        mag = ndimage.binary_dilation(mag, iterations=2)
+        # zbytky purpurové barvy na okrajích ztlumit
+        m = m.copy()
+        tint = (m[..., 0] + m[..., 2]) / 2 > m[..., 1] * 1.15
+        m[tint, 0] = m[tint, 1]
+        m[tint, 2] = m[tint, 1]
         fg = ndimage.binary_opening(~mag, iterations=2)
         lab, n = ndimage.label(fg)
         sizes = ndimage.sum(fg, lab, range(n + 1))
