@@ -3,7 +3,7 @@ extends Node2D
 ##  - klády porostlé mechem přes celou cestu – hrdina je musí přeskočit,
 ##  - nášlapné pasti – po šlápnutí cvakne, na kraji obrazovky blikne varování
 ##    a v tom pruhu cesty proletí smrtelná šipka. Uhnout jde krokem nahoru/dolů,
-##    výskokem nebo úskokem. Šipka zabije i nepřítele.
+##    výskokem nebo úskokem. Past spouští i zraňuje jen hrdinu.
 
 const Fighter := preload("res://scripts/fighter.gd")
 const BgData := preload("res://scripts/bg_data.gd")
@@ -120,8 +120,8 @@ func _update_darts() -> void:
 		dp.x += dir * DART_SPEED * Fighter.DT
 		d[0] = dp
 		var hit := false
-		for f in stage.fighters:
-			if not f.alive() or f.flying or f.state == Fighter.S.DOWN or f.drown_t > 0:
+		for f in [stage.player]:   # šipka zraní jen hrdinu
+			if not f.alive() or f.state == Fighter.S.DOWN or f.drown_t > 0:
 				continue
 			if absf(f.pos.y - dp.y) < 9.0 and f.z < 20.0 and absf(f.pos.x - dp.x) < 10.0 and f.can_be_hit():
 				f.set("incoming_move", "magic")
