@@ -97,7 +97,7 @@ func _draw_lightning() -> void:
 
 ## Dračí hlava proletí šikmo dolů přes celou obrazovku, za ní se táhne
 ## dlouhé přízračné tělo až za okraj (konec draka není nikdy vidět).
-const DIVE := 0.38          # sklon letu dolů (rad)
+const DIVE := 0.0           # let vodorovně v horní části obrazovky
 const FLY_TIME := 1.7
 
 
@@ -109,9 +109,9 @@ func _head_s() -> float:
 
 func _draw_dragon() -> void:
 	var cam := get_viewport().get_camera_2d()
-	var center := Vector2(240.0, 120.0)
+	var center := Vector2(240.0, 72.0)
 	if cam != null:
-		center = cam.get_screen_center_position() + Vector2(0.0, -30.0)
+		center = Vector2(cam.get_screen_center_position().x, 72.0)
 	var dir := Vector2(cos(DIVE), sin(DIVE))
 	var nrm := Vector2(-dir.y, dir.x)
 	var hp := center + dir * _head_s()
@@ -121,8 +121,8 @@ func _draw_dragon() -> void:
 		if t > 0.25 and t < FLY_TIME:
 			var flick := 1.0 + 0.08 * sin(t * 50.0)
 			var mouth := hp + dir * 70.0 + nrm * 18.0
-			var ang := DIVE + 0.28
-			var fl := 300.0 * flick
+			var ang := 0.62   # oheň šikmo dolů na bojiště
+			var fl := 330.0 * flick
 			var fh := 170.0 * flick
 			draw_set_transform(mouth, ang, Vector2.ONE)
 			draw_texture_rect(fire, Rect2(-10.0, -fh * 0.5, fl, fh), false, Color(1, 1, 1, 0.95 * fade))

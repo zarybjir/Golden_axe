@@ -24,13 +24,13 @@ const STAGES := [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1]]},
 		{"x": 860.0, "enemies": [["bat", 1], ["bat", -1], ["ghoul", 1]]},
 		{"x": 1300.0, "enemies": [["skeleton", 1], ["ghoul", -1], ["ghoul", 1]]},
-		{"x": 1760.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["skeleton", 1], ["ghoul", -1]], "boss": true},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["ghoul", -1], ["ghoul", 1]], "boss": true},
 	]},
 	{"name": "Hřbitov", "biome": "graveyard", "waves": [
 		{"x": 420.0, "enemies": [["skeleton", 1], ["skeleton", -1]]},
 		{"x": 860.0, "enemies": [["skeleton", 1], ["bat", -1], ["skeleton", -1], ["bat", 1]]},
 		{"x": 1300.0, "enemies": [["rider", 1], ["skeleton", -1], ["skeleton", 1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["skeleton", -1]], "boss": true},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["skeleton", 1]], "boss": true},
 	]},
 	{"name": "Džungle", "biome": "jungle", "waves": [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1], ["ghoul", -1]]},
