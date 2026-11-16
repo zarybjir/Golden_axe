@@ -9,6 +9,7 @@ const PropScript := preload("res://scripts/props.gd")
 const CreatureScript := preload("res://scripts/creature.gd")
 const FxScript := preload("res://scripts/fx.gd")
 const BackgroundScript := preload("res://scripts/background.gd")
+const ParallaxScript := preload("res://scripts/parallax.gd")
 const Fighter := preload("res://scripts/fighter.gd")
 
 const LEVEL_LEN := 2000.0
@@ -77,15 +78,30 @@ func _ready() -> void:
 	var st: Dictionary = STAGES[stage_index]
 	waves = st["waves"]
 	biome = st["biome"]
-	ground_tex = load("res://art/bg/%s_ground.webp" % biome)
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var bg_layer := CanvasLayer.new()
 	bg_layer.layer = -10
 	add_child(bg_layer)
-	var bg := BackgroundScript.new()
-	bg.biome = biome
-	bg.level_len = LEVEL_LEN
-	bg_layer.add_child(bg)
+	if ParallaxScript.has_biome(biome):
+		# Hrubé retro pozadí ve vrstvách s paralaxou
+		ground_tex = load("res://art/bg/%s/ground.png" % biome)
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var back := ParallaxScript.new()
+		back.biome = biome
+		bg_layer.add_child(back)
+		var fg_layer := CanvasLayer.new()
+		fg_layer.layer = 4
+		add_child(fg_layer)
+		var front := ParallaxScript.new()
+		front.biome = biome
+		front.mode = "front"
+		fg_layer.add_child(front)
+	else:
+		ground_tex = load("res://art/bg/%s_ground.webp" % biome)
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		var bg := BackgroundScript.new()
+		bg.biome = biome
+		bg.level_len = LEVEL_LEN
+		bg_layer.add_child(bg)
 
 	cam = Camera2D.new()
 	add_child(cam)
@@ -453,9 +469,9 @@ func _draw() -> void:
 	# Malovaná zem: opakující se pás, posouvá se spolu s postavami.
 	if ground_tex == null:
 		return
-	var h := 156.0
+	var h := float(ground_tex.get_height()) if ParallaxScript.has_biome(biome) else 156.0
 	var w := float(ground_tex.get_width()) * h / float(ground_tex.get_height())
 	var x := floorf((cam_x - HALF_W - 10.0) / w) * w
 	while x < cam_x + HALF_W + 10.0:
-		draw_texture_rect(ground_tex, Rect2(x, 300.0 - h, w + 1.0, h), false)
+		draw_texture_rect(ground_tex, Rect2(roundf(x), 300.0 - h, w, h), false)
 		x += w
