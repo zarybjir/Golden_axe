@@ -97,23 +97,24 @@ func _draw_far_water(offset: float) -> void:
 	var last := int(ceilf((offset + size.x + 200.0) / step))
 	var t := Time.get_ticks_msec() / 1000.0
 	for i in range(first, last + 1):
-		if _rnd(i, 21) < 0.35:
+		if _rnd(i, 21) < 0.2:
 			continue
-		var w := 50.0 + _rnd(i, 22) * 110.0
+		var w := 100.0 + _rnd(i, 22) * 160.0
 		var x := roundf(i * step + _rnd(i, 23) * 60.0 - offset)
 		var y := roundf(158.0 + _rnd(i, 24) * 16.0)
-		var h := 3.0 + roundf(_rnd(i, 25) * 3.0)
+		var h := 6.0 + roundf(_rnd(i, 25) * 6.0)
 		# zubaté okraje po 4 px
 		var cx := x
 		while cx < x + w:
 			var edge := absf((cx - x) / w - 0.5) * 2.0
 			var hh := roundf(h * (1.0 - edge * edge * 0.8))
-			draw_rect(Rect2(cx, y - hh * 0.5, 4, hh), Color("232821"))
-			draw_rect(Rect2(cx, y - hh * 0.5, 4, 1), Color("3a4035"))
+			draw_rect(Rect2(cx, y - hh * 0.5, 4, hh), Color("40463a"))
+			draw_rect(Rect2(cx, y - hh * 0.5, 4, 1), Color("1e231c"))
+			draw_rect(Rect2(cx, y + hh * 0.5 - 1.0, 4, 1), Color("6b6e60"))
 			cx += 4.0
 		# třpyt hladiny
 		var sh := fmod(t * 6.0 + i * 3.0, w - 10.0)
-		draw_rect(Rect2(roundf(x + 5.0 + sh), y, 5, 1), Color("5a5f52"))
+		draw_rect(Rect2(roundf(x + 5.0 + sh), y, 8, 1), Color("8a8a7a"))
 
 
 ## Svislý přechod mlhy (od průhledné nahoře k mlze uprostřed a zpět).
