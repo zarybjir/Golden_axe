@@ -507,28 +507,16 @@ func _pools(x0: float, x1: float) -> Array:
 
 ## Animace vody: pomalé vlnky a pohyblivé odlesky na hladině.
 func _draw_water_anim(r: Rect2) -> void:
+	# jen pár tmavých bublin, které občas vystoupají – voda je hluboká
 	var c := r.get_center()
 	var tt := time + c.x * 0.01
-	for k in 3:
-		var ph := fmod(tt * 0.45 + k / 3.0, 1.0)
-		var rx := r.size.x * 0.42 * (0.25 + ph * 0.75)
-		var ry := r.size.y * 0.32 * (0.25 + ph * 0.75)
-		var col := Color(0.75, 0.82, 0.7, 0.28 * (1.0 - ph))
-		draw_set_transform(c, 0.0, Vector2(1.0, ry / maxf(rx, 1.0)))
-		draw_arc(Vector2.ZERO, rx, 0.0, TAU, 40, col, 1.2 * rx / maxf(ry, 1.0) * 0.35 + 0.6)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# bubliny – voda je hluboká a nebezpečná
-	for k in 3:
-		var ph2 := fmod(tt * 0.8 + k * 0.37, 1.0)
-		var bx := c.x + sin(k * 2.7 + floorf(tt * 0.8 + k * 0.37) * 1.3) * r.size.x * 0.22
-		var by := c.y + cos(k * 1.9) * r.size.y * 0.15
-		var br := 1.5 + ph2 * 2.5
-		draw_arc(Vector2(bx, by), br, 0.0, TAU, 12, Color(0.8, 0.88, 0.7, 0.6 * (1.0 - ph2)), 1.0)
-	for k in 4:
-		var sx := c.x + sin(tt * 1.3 + k * 1.9) * r.size.x * 0.28
-		var sy := c.y + cos(tt * 0.9 + k * 2.3) * r.size.y * 0.18
-		var a := 0.25 + 0.2 * sin(tt * 3.0 + k)
-		draw_rect(Rect2(sx, sy, 6.0 + k, 1.0), Color(0.85, 0.9, 0.8, a))
+	for k in 2:
+		var ph := fmod(tt * 0.6 + k * 0.5, 1.0)
+		if ph > 0.35:
+			continue
+		var bx := c.x + sin(k * 2.7 + floorf(tt * 0.6 + k * 0.5) * 1.7) * r.size.x * 0.2
+		var by := c.y + cos(k * 1.9) * r.size.y * 0.12
+		draw_circle(Vector2(bx, by), 1.2 + ph * 4.0, Color(0.3, 0.34, 0.26, 0.55 * (1.0 - ph / 0.35)))
 
 
 var ripples: Array = []
@@ -567,7 +555,7 @@ func _draw_puddles() -> void:
 			var p: Vector2 = rp[0]
 			var rad := 6.0 + age * 26.0
 			draw_set_transform(p, 0.0, Vector2(1.0, 0.3))
-			draw_arc(Vector2.ZERO, rad, 0.0, TAU, 32, Color(0.85, 0.9, 0.8, 0.5 * (1.0 - age / 1.2)), 2.5)
+			draw_arc(Vector2.ZERO, rad, 0.0, TAU, 32, Color(0.28, 0.32, 0.24, 0.45 * (1.0 - age / 1.2)), 1.5)
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

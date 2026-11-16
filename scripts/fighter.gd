@@ -322,8 +322,6 @@ func _draw() -> void:
 
 	if not anim_tex.is_empty():
 		_draw_anim(mod)
-		if drown_t > 0:
-			_draw_water_surface()
 		_draw_extra()
 		return
 	if not rig_tex.is_empty():
@@ -363,6 +361,9 @@ func _draw_extra() -> void:
 
 ## Vybere animaci a snímek podle stavu: [název, snímek, náklon].
 func _anim_pick() -> Array:
+	if drown_t > 0:
+		# při topení se nehýbe – ztuhlý v pozici zásahu
+		return ["idle", 0, -0.12]
 	match state:
 		S.WALK:
 			return ["walk", int(anim_clock * 14.0), 0.0]

@@ -28,7 +28,7 @@ ANIMS = {
     "walk": ("v2", list(range(9, 25)), 12.0, True, -1, "ground"),
     "atk1": ("v3", [55, 56, 57, 58, 59, 60, 61], 12.0, False, 3, "ground"),
     "atk2": ("v3", [61, 62, 63, 64, 65, 66], 12.0, False, 2, "ground"),
-    "atk3": ("v3", [71, 72, 73, 74, 77, 78, 79, 80, 81], 12.0, False, 4, "ground"),
+    "atk3": ("v3", [71, 72, 73, 74, 79, 80], 12.0, False, 4, "ground"),
     "ride": ("v3", [111], 1.0, True, -1, "ride"),
     "jump": ("v4", [12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], 12.0, False, -1, "feet"),
     "magic": ("v3", list(range(140, 165)), 12.0, False, 12, "ground"),
@@ -36,6 +36,19 @@ ANIMS = {
     "getup": ("v3", list(range(100, 114)), 12.0, False, -1, "ground"),
     "dodge": ("v3", [101, 102, 103, 104, 112, 113], 12.0, False, -1, "ground"),
 }
+
+
+def grade(im):
+    """Vybledlé, surovější barvy – stejné ladění jako prostředí (menší sytost, tmavší, do zelena)."""
+    a = np.asarray(im).astype(float)
+    rgb = a[..., :3]
+    lum = rgb.mean(axis=2, keepdims=True)
+    rgb = lum + (rgb - lum) * 0.62
+    rgb = rgb * 0.88
+    rgb[..., 1] *= 1.03
+    rgb[..., 2] *= 0.92
+    a[..., :3] = np.clip(rgb, 0, 255)
+    return Image.fromarray(a.astype(np.uint8), "RGBA")
 
 
 def main(frames_root):
@@ -61,7 +74,7 @@ def main(frames_root):
             a = np.asarray(im)[..., 3]
             ys, xs = np.nonzero(a > 8)
             x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
-            crop = im.crop((x0, y0, x1, y1))
+            crop = grade(im.crop((x0, y0, x1, y1)))
             fname = f"{name}_{n:02d}.webp"
             crop.save(os.path.join(out_dir, fname), quality=88, method=6)
             ax = anc[0] * scale
