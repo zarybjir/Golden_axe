@@ -453,7 +453,7 @@ func _draw() -> void:
 	# Malovaná zem: opakující se pás, posouvá se spolu s postavami.
 	if ground_tex == null:
 		return
-	var h := 142.0
+	var h := 156.0
 	var w := float(ground_tex.get_width()) * h / float(ground_tex.get_height())
 	var x := floorf((cam_x - HALF_W - 10.0) / w) * w
 	while x < cam_x + HALF_W + 10.0:
