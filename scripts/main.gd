@@ -406,7 +406,7 @@ func _take_shots() -> void:
 	# nášlapná past a šipka
 	stage.player.pos = Vector2(380.0, 250.0)
 	stage.player.set_state(Fighter.S.IDLE)
-	await _wait(0.62)
+	await _wait(0.85)
 	_save_shot("2e_past")
 	await _wait(1.6)
 	start_stage(3)

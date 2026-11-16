@@ -144,11 +144,12 @@ func _draw_log(n: Node2D, k: int) -> void:
 	if absf(lx - stage.cam_x) > stage.HALF_W + 120.0:
 		return
 	var tex: Texture2D = log_tex[k % log_tex.size()]
-	var len := 118.0
+	var len := 150.0
 	var sc := len / (tex.get_width() / R)
-	var th := tex.get_height() / R * sc
+	var th := tex.get_height() / R * sc * 0.8
 	# kláda leží šikmo přes celou šířku cesty (od zadního okraje k přednímu)
-	n.draw_set_transform(Vector2(lx, 243.0), 1.18, Vector2.ONE)
+	# leží šikmo – zadní konec vpravo nahoře, přední vlevo dole
+	n.draw_set_transform(Vector2(lx, 243.0), -0.72, Vector2.ONE)
 	n.draw_texture_rect(tex, Rect2(-len * 0.5, -th * 0.5, len, th), false, Color(0.82, 0.8, 0.78))
 	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
