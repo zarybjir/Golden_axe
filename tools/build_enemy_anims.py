@@ -13,13 +13,14 @@ from PIL import Image
 LOGICAL_H = 180.0  # výška obra ve hře (logické px)
 
 # druh: {animace: (video, snímky, smyčka, snímek úderu)}
+# Vynechané snímky mají chyby z videa (zdvojený nebo rozmazaný kyj).
 SETS = {
     "ogre": {
         "idle": ("idle", list(range(0, 61, 2)), True, -1),
         "walk": ("walk", list(range(0, 31)), True, -1),
-        "attack": ("attack", list(range(9, 43)), False, 17),
-        "block": ("block", list(range(6, 37)), False, -1),
-        "fall": ("fall", list(range(9, 37)), False, -1),
+        "attack": ("attack", [i for i in range(9, 43) if i != 28], False, 18),
+        "block": ("block", [i for i in range(6, 37) if i != 10], False, -1),
+        "fall": ("fall", [i for i in range(9, 37) if i != 19], False, -1),
     },
 }
 
