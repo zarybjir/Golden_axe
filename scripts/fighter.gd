@@ -109,16 +109,20 @@ func start_drown() -> void:
 func _drown_step() -> void:
 	drown_t += 1
 	vel = Vector2.ZERO
-	sink = minf(float(drown_t) * 0.9, 50.0)
-	modulate.a = clampf(1.0 - float(drown_t - 20) / 30.0, 0.0, 1.0)
-	if drown_t % 8 == 0 and stage != null:
-		stage.fx.burst(Vector2(pos.x + randf_range(-8, 8), pos.y - 4.0), Color("8a9a7a"), 3, 30.0, 0.5, -40.0, 2.0)
-	if drown_t == 50:
+	# postava klesá, část pod hladinou se nekreslí (ořez v _draw_anim)
+	sink = minf(float(drown_t) * 2.2, 140.0)
+	if anim_tex.is_empty():
+		modulate.a = clampf(1.0 - float(drown_t - 10) / 40.0, 0.0, 1.0)
+	if drown_t % 6 == 0 and stage != null:
+		stage.fx.burst(Vector2(pos.x + randf_range(-10, 10), pos.y - 2.0), Color("a8b496"), 3, 25.0, 0.6, -60.0, 2.0)
+	if drown_t % 14 == 0 and stage != null:
+		stage.ripple(Vector2(pos.x, pos.y))
+	if drown_t == 60:
 		hp = 0
 		set_state(S.DEAD)
 		if self is Node and get("dead_t") != null:
 			set("dead_t", 40)
-	if drown_t > 50 and state != S.DEAD:
+	if drown_t > 60 and state != S.DEAD:
 		# oživený hrdina
 		drown_t = 0
 		sink = 0.0
@@ -391,7 +395,15 @@ func _draw_anim(mod: Color) -> void:
 		i = clampi(i, 0, arr.size() - 1)
 	var off: Vector2 = a["offsets"][i]
 	draw_set_transform(Vector2.ZERO, float(pick[2]) * facing, Vector2(facing * anim_k, anim_k))
-	draw_texture(arr[i], off, mod)
+	var tex: Texture2D = arr[i]
+	if drown_t > 0:
+		# hladina je v místních souřadnicích na y = -sink; co je pod ní, nekreslit
+		var cut := (-sink + 2.0) / anim_k - off.y
+		var hv := clampf(cut, 0.0, float(tex.get_height()))
+		if hv > 0.0:
+			draw_texture_rect_region(tex, Rect2(off, Vector2(tex.get_width(), hv)), Rect2(0, 0, tex.get_width(), hv), mod)
+	else:
+		draw_texture(tex, off, mod)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 

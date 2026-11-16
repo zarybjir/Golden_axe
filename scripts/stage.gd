@@ -484,18 +484,46 @@ func _pools(x0: float, x1: float) -> Array:
 	var out: Array = []
 	if water_tex.is_empty():
 		return out
-	var step := 300.0
+	var step := 260.0
 	for i in range(int(floorf((x0 - 400.0) / step)), int(ceilf(x1 / step)) + 1):
 		var r1 := float(absi((i * 73856093) ^ 912367) % 1000) / 1000.0
 		var r2 := float(absi((i * 19349663) ^ 4441) % 1000) / 1000.0
-		if r1 < 0.4 or i * step < 260.0:
+		if r1 < 0.25 or i * step < 260.0:
 			continue
 		var tex: Texture2D = water_tex[int(r2 * 997.0) % water_tex.size()]
-		var sc := 1.0 if r1 < 0.8 else 1.4
+		var sc := 1.0 if r1 < 0.7 else 1.7   # občas široký brod
 		var w := tex.get_width() / ParallaxScript.R * sc
 		var h := tex.get_height() / ParallaxScript.R * sc
-		out.append([Rect2(roundf(i * step + r2 * 80.0), roundf(196.0 + r1 * 60.0), w, h), tex, r2 < 0.5])
+		out.append([Rect2(roundf(i * step + r2 * 80.0), roundf(196.0 + r1 * 70.0), w, h), tex, r2 < 0.5])
 	return out
+
+
+## Animace vody: pomalé vlnky a pohyblivé odlesky na hladině.
+func _draw_water_anim(r: Rect2) -> void:
+	var c := r.get_center()
+	var tt := time + c.x * 0.01
+	for k in 3:
+		var ph := fmod(tt * 0.45 + k / 3.0, 1.0)
+		var rx := r.size.x * 0.42 * (0.25 + ph * 0.75)
+		var ry := r.size.y * 0.32 * (0.25 + ph * 0.75)
+		var col := Color(0.75, 0.82, 0.7, 0.28 * (1.0 - ph))
+		draw_set_transform(c, 0.0, Vector2(1.0, ry / maxf(rx, 1.0)))
+		draw_arc(Vector2.ZERO, rx, 0.0, TAU, 40, col, 1.2 * rx / maxf(ry, 1.0) * 0.35 + 0.6)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for k in 4:
+		var sx := c.x + sin(tt * 1.3 + k * 1.9) * r.size.x * 0.28
+		var sy := c.y + cos(tt * 0.9 + k * 2.3) * r.size.y * 0.18
+		var a := 0.25 + 0.2 * sin(tt * 3.0 + k)
+		draw_rect(Rect2(sx, sy, 6.0 + k, 1.0), Color(0.85, 0.9, 0.8, a))
+
+
+var ripples: Array = []
+
+
+func ripple(p: Vector2) -> void:
+	ripples.append([p, time])
+	if ripples.size() > 12:
+		ripples.pop_front()
 
 
 ## Stojí bod (nohy postavy) v hluboké vodě? Kontroluje se vnitřní elipsa tůně.
@@ -503,8 +531,9 @@ func in_pool(p: Vector2) -> bool:
 	for pl in _pools(p.x - 300.0, p.x + 300.0):
 		var r: Rect2 = pl[0]
 		var c := r.get_center()
-		var dx := (p.x - c.x) / (r.size.x * 0.40)
-		var dy := (p.y - c.y) / (r.size.y * 0.40)
+		# voda zabírá zhruba vnitřek tůně (bez bahnitého břehu)
+		var dx := (p.x - c.x) / (r.size.x * 0.44)
+		var dy := (p.y - c.y) / maxf(r.size.y * 0.5, 9.0)
 		if dx * dx + dy * dy < 1.0:
 			return true
 	return false
@@ -515,7 +544,17 @@ func _draw_puddles() -> void:
 		var r: Rect2 = pl[0]
 		if pl[2]:
 			r = Rect2(r.position.x + r.size.x, r.position.y, -r.size.x, r.size.y)
-		draw_texture_rect(pl[1], r, false, Color(0.62, 0.68, 0.64))
+		draw_texture_rect(pl[1], r, false, Color(0.78, 0.82, 0.78))
+		_draw_water_anim(pl[0])
+	# kruhy na hladině tam, kde se někdo topí
+	for rp in ripples:
+		var age: float = time - rp[1]
+		if age < 1.2:
+			var p: Vector2 = rp[0]
+			var rad := 6.0 + age * 26.0
+			draw_set_transform(p, 0.0, Vector2(1.0, 0.3))
+			draw_arc(Vector2.ZERO, rad, 0.0, TAU, 32, Color(0.85, 0.9, 0.8, 0.5 * (1.0 - age / 1.2)), 2.5)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## Topení: hrdina, který vstoupí do tůně, a nepřítel sražený do tůně, se utopí.
@@ -534,6 +573,7 @@ func _drowning() -> void:
 			continue
 		if in_pool(f.pos):
 			f.start_drown()
+			ripple(f.pos)
 			fx.burst(Vector2(f.pos.x, f.pos.y - 6.0), Color("6b7a5a"), 18, 120.0, 0.6, 300.0, 3.0)
 			Sfx.play("land", 0.5)
 			if is_player:
