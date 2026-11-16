@@ -5,17 +5,17 @@ const EnemyAnims := preload("res://scripts/enemy_anims.gd")
 ## má čitelný nápřah (postava zežloutne a nad hlavou se ukáže "!").
 
 const KINDS := {
-	"goblin": {"hp": 26, "speed": Vector2(84, 50), "reach": 28.0, "attack": "gob_atk", "cool": 46,
+	"goblin": {"hp": 26, "range": 40.0, "speed": Vector2(84, 50), "reach": 28.0, "attack": "gob_atk", "cool": 46,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.7, "score": 100},
-	"ghoul": {"hp": 30, "speed": Vector2(88, 52), "reach": 20.0, "attack": "ghoul_atk", "cool": 40,
+	"ghoul": {"hp": 30, "range": 46.0, "speed": Vector2(88, 52), "reach": 20.0, "attack": "ghoul_atk", "cool": 40,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 120,
 		"sprite": "lidojed", "h": 100.0},
-	"bat": {"hp": 16, "speed": Vector2(120, 70), "reach": 20.0, "attack": "bat_swoop", "cool": 50,
+	"bat": {"hp": 16, "range": 38.0, "speed": Vector2(120, 70), "reach": 20.0, "attack": "bat_swoop", "cool": 50,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 140,
 		"sprite": "netopyr", "h": 62.0, "fly": true, "hit_w": 14.0},
-	"skeleton": {"hp": 34, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
+	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
-	"ogre": {"hp": 260, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
+	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
 		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3000, "armor": true,
 		"name": "OBR GRUMOR", "hit_w": 7.0, "depth": 10.0},
 }
