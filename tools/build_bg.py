@@ -106,17 +106,40 @@ def main(biome):
         m = np.asarray(Image.open(path).convert("RGB")).astype(int)
         green = (m[..., 1] > 140) & (m[..., 0] < 150) & (m[..., 2] < 140) & (m[..., 1] > m[..., 0] + 60)
         fg = ndimage.binary_opening(~green, iterations=2)
-        lab, n = ndimage.label(ndimage.binary_dilation(fg, iterations=6))
+        # Objekty se často dotýkají u země – dělíme podle svislých mezer
+        # v horních 80 % jejich výšky (kde se nedotýkají).
+        ys_all = np.nonzero(fg.any(axis=1))[0]
+        cut_y = int(ys_all.min() + (ys_all.max() - ys_all.min()) * 0.8)
+        cols = fg[:cut_y].any(axis=0)
         objs = []
-        for i in range(1, n + 1):
-            mask = (lab == i) & fg
-            if mask.sum() < 1500:
+        x = 0
+        W = fg.shape[1]
+        while x < W:
+            if not cols[x]:
+                x += 1
                 continue
-            ys, xs = np.nonzero(mask)
-            objs.append((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, mask))
+            x0 = x
+            while x < W and cols[x]:
+                x += 1
+            x1 = x
+            mask = np.zeros_like(fg)
+            mask[:, x0:x1] = fg[:, x0:x1]
+            lab, n = ndimage.label(mask)
+            if n == 0:
+                continue
+            sizes = ndimage.sum(mask, lab, range(n + 1))
+            keep = np.isin(lab, np.nonzero(sizes > 300)[0][np.nonzero(sizes > 300)[0] > 0])
+            if keep.sum() < 1500:
+                continue
+            yy, xx = np.nonzero(keep)
+            objs.append((xx.min(), yy.min(), xx.max() + 1, yy.max() + 1, keep))
         tallest = max(o[3] - o[1] for o in objs)
         k = OBJ_H * rel / tallest
+        # odstranit zelený lem z klíčování (zelená nesmí přesáhnout ostatní kanály)
+        m = m.copy()
+        m[..., 1] = np.minimum(m[..., 1], np.maximum(m[..., 0], m[..., 2]) + 8)
         for (x0, y0, x1, y1, mask) in sorted(objs, key=lambda o: o[0]):
+            mask = ndimage.binary_erosion(mask, iterations=1)
             crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask[y0:y1, x0:x1] * 255).astype(np.uint8)])
             im = Image.fromarray(crop, "RGBA")
             retro(im, (max(1, round(im.width * k)), max(1, round(im.height * k)))).save(f"{out}/obj_{objs_total}.png")
