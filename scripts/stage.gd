@@ -95,13 +95,6 @@ func _ready() -> void:
 		var back := ParallaxScript.new()
 		back.biome = biome
 		bg_layer.add_child(back)
-		var fg_layer := CanvasLayer.new()
-		fg_layer.layer = 4
-		add_child(fg_layer)
-		var front := ParallaxScript.new()
-		front.biome = biome
-		front.mode = "front"
-		fg_layer.add_child(front)
 	else:
 		ground_tex = load("res://art/bg/%s_ground.webp" % biome)
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
