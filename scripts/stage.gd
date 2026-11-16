@@ -149,6 +149,7 @@ func _physics_process(_delta: float) -> void:
 	_clamp_all()
 	_pickups()
 	_cleanup()
+	_drowning()
 	_player_death()
 	_camera_logic()
 	_update_camera()
@@ -461,6 +462,14 @@ func _player_death() -> void:
 	if respawn_t == 50:
 		deaths += 1
 		player.hp = player.max_hp
+		player.drown_t = 0
+		player.sink = 0.0
+		player.modulate.a = 1.0
+		# po utopení vylézt na suchou zem
+		var tries := 0
+		while in_pool(player.pos) and tries < 40:
+			player.pos.x -= 10.0
+			tries += 1
 		player.set_state(Fighter.S.IDLE)
 		player.invuln = 120
 		popup("ZNOVU DO BOJE!", player.pos + Vector2(-30, -40), Color("f0d050"))
@@ -469,29 +478,66 @@ func _player_death() -> void:
 				f.take_hit(0, 1 if f.pos.x >= player.pos.x else -1, true, 0.0)
 
 
-## Kaluže a široké brody na cestě (malované, dá se jimi projít).
-func _draw_puddles() -> void:
+## Hluboké bažinaté tůně na cestě (malované). Kdo do nich vstoupí, utopí se.
+## Vrací [Rect2 v souřadnicích světa, textura, převrátit].
+func _pools(x0: float, x1: float) -> Array:
+	var out: Array = []
 	if water_tex.is_empty():
-		return
-	var step := 260.0
-	var first := int(floorf((cam_x - HALF_W - 400.0) / step))
-	var last := int(ceilf((cam_x + HALF_W + 200.0) / step))
-	for i in range(first, last + 1):
+		return out
+	var step := 300.0
+	for i in range(int(floorf((x0 - 400.0) / step)), int(ceilf(x1 / step)) + 1):
 		var r1 := float(absi((i * 73856093) ^ 912367) % 1000) / 1000.0
 		var r2 := float(absi((i * 19349663) ^ 4441) % 1000) / 1000.0
-		if r1 < 0.25:
+		if r1 < 0.4 or i * step < 260.0:
 			continue
 		var tex: Texture2D = water_tex[int(r2 * 997.0) % water_tex.size()]
-		var sc := 1.0 if r1 < 0.7 else 1.7   # občas široký brod
+		var sc := 1.0 if r1 < 0.8 else 1.4
 		var w := tex.get_width() / ParallaxScript.R * sc
 		var h := tex.get_height() / ParallaxScript.R * sc
-		var x := roundf(i * step + r2 * 80.0)
-		var y := roundf(196.0 + r1 * 70.0)
-		var flip := r2 < 0.5
-		var r := Rect2(x, y, w, h)
-		if flip:
-			r = Rect2(x + w, y, -w, h)
-		draw_texture_rect(tex, r, false, Color(0.78, 0.82, 0.78))
+		out.append([Rect2(roundf(i * step + r2 * 80.0), roundf(196.0 + r1 * 60.0), w, h), tex, r2 < 0.5])
+	return out
+
+
+## Stojí bod (nohy postavy) v hluboké vodě? Kontroluje se vnitřní elipsa tůně.
+func in_pool(p: Vector2) -> bool:
+	for pl in _pools(p.x - 300.0, p.x + 300.0):
+		var r: Rect2 = pl[0]
+		var c := r.get_center()
+		var dx := (p.x - c.x) / (r.size.x * 0.40)
+		var dy := (p.y - c.y) / (r.size.y * 0.40)
+		if dx * dx + dy * dy < 1.0:
+			return true
+	return false
+
+
+func _draw_puddles() -> void:
+	for pl in _pools(cam_x - HALF_W, cam_x + HALF_W + 200.0):
+		var r: Rect2 = pl[0]
+		if pl[2]:
+			r = Rect2(r.position.x + r.size.x, r.position.y, -r.size.x, r.size.y)
+		draw_texture_rect(pl[1], r, false, Color(0.62, 0.68, 0.64))
+
+
+## Topení: hrdina, který vstoupí do tůně, a nepřítel sražený do tůně, se utopí.
+func _drowning() -> void:
+	if water_tex.is_empty() or finished:
+		return
+	for f in fighters:
+		if not f.alive() or f.get("drown_t") == null:
+			continue
+		if f.drown_t > 0:
+			continue
+		if f.z > 0.5 or f.flying or f.state == Fighter.S.RIDE or f.state == Fighter.S.JUMP:
+			continue
+		var is_player: bool = f == player
+		if not is_player and f.state != Fighter.S.DOWN:
+			continue
+		if in_pool(f.pos):
+			f.start_drown()
+			fx.burst(Vector2(f.pos.x, f.pos.y - 6.0), Color("6b7a5a"), 18, 120.0, 0.6, 300.0, 3.0)
+			Sfx.play("land", 0.5)
+			if is_player:
+				popup("TŮŇ!", f.pos + Vector2(-12, -60), Color("9ad870"))
 
 
 ## Rozkládající se ostatky ležící na cestě – ztlumené, aby moc nevystupovaly.

@@ -57,6 +57,7 @@ var anim_set: Dictionary = {}
 var hurt_len := 16      # jak dlouho trvá zaškobrtnutí / krytí
 var down_len := 40      # jak dlouho leží (snímky)
 var getup_len := 18     # jak dlouho vstává
+var drown_t := 0         # > 0 = topí se v bažině
 var flying := false     # létající nepřítel (netopýr) – bez gravitace
 var incoming_move := ""  # tah, kterým nás právě zasahují (kvůli krytí)
 var anim_k := 1.0
@@ -93,8 +94,39 @@ func setup_rig() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
+var sink := 0.0
+
+
+func start_drown() -> void:
+	drown_t = 1
+	vel = Vector2.ZERO
+	telegraph = false
+	if has_method("_release"):
+		call("_release")
+
+
+## Postava se propadá do bažiny, slábne a nakonec zmizí.
+func _drown_step() -> void:
+	drown_t += 1
+	vel = Vector2.ZERO
+	sink = minf(float(drown_t) * 0.9, 50.0)
+	modulate.a = clampf(1.0 - float(drown_t - 20) / 30.0, 0.0, 1.0)
+	if drown_t % 8 == 0 and stage != null:
+		stage.fx.burst(Vector2(pos.x + randf_range(-8, 8), pos.y - 4.0), Color("8a9a7a"), 3, 30.0, 0.5, -40.0, 2.0)
+	if drown_t == 50:
+		hp = 0
+		set_state(S.DEAD)
+		if self is Node and get("dead_t") != null:
+			set("dead_t", 40)
+	if drown_t > 50 and state != S.DEAD:
+		# oživený hrdina
+		drown_t = 0
+		sink = 0.0
+		modulate.a = 1.0
+
+
 func alive() -> bool:
-	return state != S.DEAD and hp > 0
+	return state != S.DEAD and hp > 0 and drown_t == 0
 
 
 func can_be_hit() -> bool:
@@ -161,7 +193,9 @@ func physics_step() -> void:
 			if state_t >= int(move["len"]):
 				telegraph = false
 				_move_finished()
-	position = Vector2(roundf(pos.x), roundf(pos.y - z))
+	if drown_t > 0:
+		_drown_step()
+	position = Vector2(roundf(pos.x), roundf(pos.y - z + sink))
 	z_index = int(pos.y)
 	queue_redraw()
 

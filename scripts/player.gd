@@ -46,6 +46,8 @@ func _dir() -> Vector2:
 
 func tick() -> void:
 	physics_step()
+	if drown_t > 0:
+		return
 	var dir := _dir()
 	match state:
 		S.IDLE, S.WALK:

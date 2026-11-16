@@ -64,6 +64,8 @@ func _ready() -> void:
 
 func tick() -> void:
 	physics_step()
+	if drown_t > 0 and state != S.DEAD:
+		return
 	if state == S.DEAD:
 		dead_t += 1
 		_release()
