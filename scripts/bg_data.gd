@@ -1,4 +1,4 @@
 extends RefCounted
 ## VYGENEROVÁNO skriptem tools/build_bg.py – počet objektů v prostřední vrstvě.
 
-const OBJS := {"swamp": 7}
+const OBJS := {"swamp": 16}

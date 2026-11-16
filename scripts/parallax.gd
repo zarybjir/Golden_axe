@@ -15,12 +15,12 @@ var ground: Texture2D
 const SKY_SPEED := 0.15
 const MID_SPEED := 0.55
 const FRONT_SPEED := 1.35
-const MID_STEP := 120.0
+const MID_STEP := 150.0
 const FAR_SPEED := 0.32
-const FAR_STEP := 70.0
+const FAR_STEP := 85.0
 const HORIZON_Y := 150.0
-const FAR_BASE_Y := 160.0
-const NEAR_BASE_Y := 182.0
+const FAR_BASE_Y := 166.0
+const NEAR_BASE_Y := 184.0
 const FRONT_STEP := 520.0
 
 
@@ -68,10 +68,10 @@ func _draw() -> void:
 		# 2) Vzdálená země (perspektivně zploštělá) – na ní stojí vzdálené objekty
 		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, NEAR_BASE_Y + 4.0)
 		# 3) Vzdálená řada objektů v mlze
-		_draw_objects(left * FAR_SPEED, FAR_STEP, FAR_BASE_Y, 0.55, Color(0.62, 0.62, 0.64), 11)
+		_draw_objects(left * FAR_SPEED, FAR_STEP, FAR_BASE_Y, 0.8, Color(0.62, 0.62, 0.64), 11)
 		_fog(HORIZON_Y - 26.0, NEAR_BASE_Y - 6.0, 0.30)
 		# 4) Bližší řada objektů
-		_draw_objects(left * MID_SPEED, MID_STEP, NEAR_BASE_Y, 0.9, Color(0.86, 0.84, 0.82), 0)
+		_draw_objects(left * MID_SPEED, MID_STEP, NEAR_BASE_Y, 1.5, Color(0.86, 0.84, 0.82), 0)
 	else:
 		_draw_objects(left * FRONT_SPEED, FRONT_STEP, size.y + 18.0, 1.5, Color(0.06, 0.04, 0.05, 0.92), 7)
 

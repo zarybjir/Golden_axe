@@ -84,27 +84,33 @@ def main(biome):
         keep = (np.indices(a.shape[:2])[1][y] * 7 + y * 3) % rows < y
         a[y, ~keep, 3] = 0
     Image.fromarray(a, "RGBA").save(f"{out}/ground.png")
-    # Objekty na zeleném pozadí
-    m = np.asarray(Image.open(f"{src}/grim_{biome}_mid.png").convert("RGB")).astype(int)
-    green = (m[..., 1] > 140) & (m[..., 0] < 140) & (m[..., 2] < 140) & (m[..., 1] > m[..., 0] + 60)
-    fg = ndimage.binary_opening(~green, iterations=2)
-    lab, n = ndimage.label(ndimage.binary_dilation(fg, iterations=6))
-    objs = []
-    for i in range(1, n + 1):
-        mask = (lab == i) & fg
-        if mask.sum() < 1500:
-            continue
-        ys, xs = np.nonzero(mask)
-        objs.append((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, mask))
-    tallest = max(o[3] - o[1] for o in objs)
-    k = OBJ_H / tallest
+    # Objekty na zeleném pozadí (může jich být víc listů: _mid, _mid2, _mid3 ...)
     for f in os.listdir(out):
         if f.startswith("obj_"):
             os.remove(os.path.join(out, f))
-    for idx, (x0, y0, x1, y1, mask) in enumerate(sorted(objs)):
-        crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask[y0:y1, x0:x1] * 255).astype(np.uint8)])
-        im = Image.fromarray(crop, "RGBA")
-        retro(im, (max(1, round(im.width * k)), max(1, round(im.height * k)))).save(f"{out}/obj_{idx}.png")
+    objs_total = 0
+    for sheet, rel in (("mid", 1.0), ("mid2", 0.9), ("mid3", 0.55)):
+        path = f"{src}/grim_{biome}_{sheet}.png"
+        if not os.path.exists(path):
+            continue
+        m = np.asarray(Image.open(path).convert("RGB")).astype(int)
+        green = (m[..., 1] > 140) & (m[..., 0] < 150) & (m[..., 2] < 140) & (m[..., 1] > m[..., 0] + 60)
+        fg = ndimage.binary_opening(~green, iterations=2)
+        lab, n = ndimage.label(ndimage.binary_dilation(fg, iterations=6))
+        objs = []
+        for i in range(1, n + 1):
+            mask = (lab == i) & fg
+            if mask.sum() < 1500:
+                continue
+            ys, xs = np.nonzero(mask)
+            objs.append((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, mask))
+        tallest = max(o[3] - o[1] for o in objs)
+        k = OBJ_H * rel / tallest
+        for (x0, y0, x1, y1, mask) in sorted(objs, key=lambda o: o[0]):
+            crop = np.dstack([m[y0:y1, x0:x1].astype(np.uint8), (mask[y0:y1, x0:x1] * 255).astype(np.uint8)])
+            im = Image.fromarray(crop, "RGBA")
+            retro(im, (max(1, round(im.width * k)), max(1, round(im.height * k)))).save(f"{out}/obj_{objs_total}.png")
+            objs_total += 1
     # Seznam objektů pro hru
     data_path = os.path.join(ROOT, "scripts/bg_data.gd")
     data = {}
@@ -112,11 +118,11 @@ def main(biome):
         mm = re.search(r"const OBJS := (\{.*\})", open(data_path).read())
         if mm:
             data = json.loads(mm.group(1))
-    data[biome] = len(objs)
+    data[biome] = objs_total
     with open(data_path, "w") as f:
         f.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_bg.py – počet objektů v prostřední vrstvě.\n\n")
         f.write(f"const OBJS := {json.dumps(data)}\n")
-    print(biome, "objektů:", len(objs))
+    print(biome, "objektů:", objs_total)
 
 
 if __name__ == "__main__":
