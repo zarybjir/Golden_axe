@@ -563,16 +563,16 @@ func _draw_puddles() -> void:
 		draw_texture_rect(pl[1], Rect2(-r.size * 0.5, r.size), false, Color(0.95, 1.0, 0.95))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		# tmavá voda znovu přes obrázek + bahnitý břeh: jasná hranice, kde začíná hloubka
-		draw_colored_polygon(pts, Color(0.07, 0.09, 0.06, 0.4))
+		draw_colored_polygon(pts, Color(0.05, 0.07, 0.05, 0.62))
 		# měkký tmavý okraj (mokré bahno), žádná kreslená čára
 		for ring in 3:
 			var g := PackedVector2Array()
-			var kx := POOL_RX + 0.012 * (ring + 1)
-			var ky := POOL_RY + 0.018 * (ring + 1)
+			var kx := POOL_RX + 0.008 * ring
+			var ky := POOL_RY + 0.014 * ring
 			for k in 33:
 				var an := TAU * k / 32.0
 				g.append(c + Vector2(cos(an) * r.size.x * kx, sin(an) * r.size.y * ky))
-			draw_polyline(g, Color(0.05, 0.05, 0.03, 0.22 - ring * 0.06), 2.0, true)
+			draw_polyline(g, Color(0.04, 0.035, 0.02, 0.6 - ring * 0.17), 2.4, true)
 		# matný odlesk oblohy na hladině
 		draw_set_transform(c + Vector2(-r.size.x * 0.06, -r.size.y * 0.06), 0.0, Vector2(1.0, 0.32))
 		draw_circle(Vector2.ZERO, r.size.x * 0.2, Color(0.55, 0.6, 0.52, 0.12))
