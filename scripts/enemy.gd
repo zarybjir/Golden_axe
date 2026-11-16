@@ -15,7 +15,7 @@ const KINDS := {
 		"sprite": "netopyr", "h": 62.0, "fly": true, "hit_w": 14.0},
 	"skeleton": {"hp": 34, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
-	"ogre": {"hp": 260, "speed": Vector2(56, 34), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
+	"ogre": {"hp": 260, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
 		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3000, "armor": true,
 		"name": "OBR GRUMOR", "hit_w": 7.0, "depth": 10.0},
 }
@@ -190,9 +190,11 @@ func _anim_pick() -> Array:
 		S.IDLE:
 			return ["idle", int(anim_clock * 6.0), 0.0]
 		S.WALK:
-			return ["walk", int(anim_clock * 12.0), 0.0]
+			return ["walk", int(anim_clock * (8.0 if kind == "ogre" else 12.0)), 0.0]
 		S.ATTACK:
 			if move_name == "ogre_charge":
+				if anim_tex.has("run"):
+					return ["run", int(anim_clock * 16.0), 0.0]
 				return ["walk", int(anim_clock * 24.0), 0.0]
 			return ["attack", _move_frame("attack"), 0.0]
 		S.HURT:

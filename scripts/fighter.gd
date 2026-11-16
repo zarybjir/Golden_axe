@@ -185,9 +185,15 @@ func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
 	if hp <= 0 or knock:
 		set_state(S.DOWN)
 		down_t = 0
-		vz = 300.0
-		z = maxf(z, 1.0)
-		vel = Vector2(dir * 170.0, 0.0)
+		if anim_tex.has("fall") and not flying:
+			# pád je celý ve videoanimaci – nevyhazovat do vzduchu (jinak "visí")
+			vz = 0.0
+			z = 0.0
+			vel = Vector2(dir * 90.0, 0.0)
+		else:
+			vz = 300.0
+			z = maxf(z, 1.0)
+			vel = Vector2(dir * 170.0, 0.0)
 	elif armor and state == S.ATTACK:
 		pass # Zlobr se při nápřahu nenechá přerušit.
 	else:
@@ -234,7 +240,8 @@ func current_pose() -> Dictionary:
 func _draw() -> void:
 	if state == S.DEAD and (state_t / 4) % 2 == 0:
 		return
-	if invuln > 0 and state != S.GETUP and state != S.DOWN and (invuln / 3) % 2 == 0:
+	# blikání (nezranitelnost) jen ve stoji a chůzi – ne při úskoku, skoku a útoku
+	if invuln > 0 and (state == S.IDLE or state == S.WALK) and (invuln / 3) % 2 == 0:
 		return
 	# Stín na zemi
 	if state != S.RIDE:

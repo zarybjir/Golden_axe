@@ -426,11 +426,18 @@ func _take_shots() -> void:
 	await _wait(1.25)
 	_save_shot("7_ohen")
 	await _wait(1.2)
+	stage.player.runes = 1
+	stage.player.set_state(Fighter.S.IDLE)
+	stage.player.invuln = 0
+	await _tap("magic")
+	await _wait(0.62)
+	_save_shot("8_blesky")
+	await _wait(1.2)
 	stage.player.runes = 3
 	stage.player.set_state(Fighter.S.IDLE)
 	stage.player.invuln = 0
 	await _tap("magic")
-	await _wait(0.36)
+	await _wait(1.25)
 	_save_shot("8_magie")
 	await _wait(1.0)
 	pause()

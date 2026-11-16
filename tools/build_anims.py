@@ -19,6 +19,7 @@ RIDE_DROP = 150.0       # o kolik px (ve videu) je jezdec posazený níž
 SOURCES = {
     "v2": ("video_hero_moves", (553.0, 690.0), 660.0),
     "v3": ("video_hero_moves2", (621.0, 718.0), 701.0),
+    "v4": ("video_hero_jump", (612.7, 689.0), 299.0),
 }
 
 # název: (zdroj, snímky, fps, smyčka, index snímku úderu nebo -1, kotva "ground"/"feet")
@@ -29,7 +30,7 @@ ANIMS = {
     "atk2": ("v3", [61, 62, 63, 64, 65, 66], 12.0, False, 2, "ground"),
     "atk3": ("v3", [71, 72, 73, 74, 77, 78, 79, 80, 81], 12.0, False, 4, "ground"),
     "ride": ("v3", [111], 1.0, True, -1, "ride"),
-    "jump": ("v3", [111, 101, 102, 103, 104, 112], 12.0, False, -1, "feet"),
+    "jump": ("v4", [12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], 12.0, False, -1, "feet"),
     "magic": ("v3", list(range(140, 165)), 12.0, False, 12, "ground"),
     "down": ("v3", list(range(83, 100)), 12.0, False, -1, "ground"),
     "getup": ("v3", list(range(100, 114)), 12.0, False, -1, "ground"),

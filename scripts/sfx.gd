@@ -31,6 +31,7 @@ func _ready() -> void:
 	sounds["break"] = _noise(0.25, 0.35, 9)
 	sounds["magic"] = _arp([220.0, 330.0, 440.0, 660.0, 880.0], 0.05, 0.16)
 	sounds["thunder"] = _mix(_noise_arr(0.8, 0.5, 14), _tone_arr(90.0, 30.0, 0.8, 0.35))
+	sounds["fire"] = _mix(_noise_arr(1.1, 0.38, 3), _tone_arr(75.0, 45.0, 1.1, 0.22))
 	sounds["roar"] = _mix(_noise_arr(0.6, 0.25, 11), _tone_arr(110.0, 70.0, 0.6, 0.3))
 	sounds["go"] = _arp([523.0, 784.0], 0.1, 0.15)
 

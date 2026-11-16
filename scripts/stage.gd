@@ -8,6 +8,7 @@ const EnemyScript := preload("res://scripts/enemy.gd")
 const PropScript := preload("res://scripts/props.gd")
 const CreatureScript := preload("res://scripts/creature.gd")
 const FxScript := preload("res://scripts/fx.gd")
+const DivineScript := preload("res://scripts/divine.gd")
 const BackgroundScript := preload("res://scripts/background.gd")
 const ParallaxScript := preload("res://scripts/parallax.gd")
 const Fighter := preload("res://scripts/fighter.gd")
@@ -358,20 +359,38 @@ func do_hits(att: Node2D) -> void:
 
 
 func magic_blast(p: Node2D, power: int) -> void:
-	flash_t = 0.45
-	shake(6.0, 0.5)
-	hitstop = 10
-	Sfx.play("thunder")
+	# Boží síla: 1–2 runy = sloupy blesků, 3–4 runy = obří dračí hlava chrlící oheň.
+	var targets: Array = []
+	var hit_list: Array = []
 	for f in fighters:
 		if f == p or f.team == p.team or not f.alive():
 			continue
 		if absf(f.pos.x - cam_x) < HALF_W + 10.0:
-			var dir := 1 if f.pos.x >= p.pos.x else -1
-			f.invuln = 0
-			f.set("incoming_move", "magic")
-			f.take_hit(10 + 14 * power, dir, true, 0.0)
-			fx.burst(Vector2(f.pos.x, f.pos.y - 30.0), Color("a0e8ff"), 14, 160.0, 0.5, 0.0, 3.0)
-			score += 50 * power
+			targets.append(Vector2(f.pos.x, f.pos.y))
+			hit_list.append(f)
+	var d := DivineScript.new()
+	d.mode = "dragon" if power >= 3 else "lightning"
+	d.targets = targets
+	d.stage = self
+	d.on_strike = _divine_strike.bind(p, power, hit_list, d.mode)
+	add_child(d)
+	shake(3.0, 0.3)
+
+
+func _divine_strike(p: Node2D, power: int, hit_list: Array, mode: String) -> void:
+	flash_t = 0.45 if mode == "lightning" else 0.2
+	shake(7.0, 0.6)
+	hitstop = 10
+	for f in hit_list:
+		if not is_instance_valid(f) or not f.alive():
+			continue
+		var dir := 1 if f.pos.x >= p.pos.x else -1
+		f.invuln = 0
+		f.set("incoming_move", "magic")
+		f.take_hit(10 + 14 * power, dir, true, 0.0)
+		var col := Color("a0e8ff") if mode == "lightning" else Color("ffb040")
+		fx.burst(Vector2(f.pos.x, f.pos.y - 30.0), col, 16, 170.0, 0.5, 0.0, 3.0)
+		score += 50 * power
 
 
 # ---------------------------------------------------------------- předměty, smrt, konec
