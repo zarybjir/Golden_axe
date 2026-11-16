@@ -67,6 +67,8 @@ func _draw() -> void:
 			sx += sw
 		# 2) Vzdálená země (perspektivně zploštělá) – na ní stojí vzdálené objekty
 		_draw_far_ground(left * FAR_SPEED, HORIZON_Y, NEAR_BASE_Y + 4.0)
+		if biome == "swamp":
+			_draw_far_water(left * FAR_SPEED)
 		# 3) Vzdálená řada objektů v mlze
 		_draw_objects(left * FAR_SPEED, FAR_STEP, FAR_BASE_Y, 0.8, Color(0.62, 0.62, 0.64), 11)
 		_fog(HORIZON_Y - 26.0, NEAR_BASE_Y - 6.0, 0.30)
@@ -85,6 +87,33 @@ func _draw_far_ground(offset: float, y0: float, y1: float) -> void:
 	while x < get_viewport_rect().size.x:
 		draw_texture_rect(ground, Rect2(roundf(x), y0, w, h), false, Color(0.72, 0.7, 0.68))
 		x += w
+
+
+## Pásy stojaté bažinaté vody na vzdálené zemi.
+func _draw_far_water(offset: float) -> void:
+	var size := get_viewport_rect().size
+	var step := 160.0
+	var first := int(floorf((offset - 200.0) / step))
+	var last := int(ceilf((offset + size.x + 200.0) / step))
+	var t := Time.get_ticks_msec() / 1000.0
+	for i in range(first, last + 1):
+		if _rnd(i, 21) < 0.35:
+			continue
+		var w := 50.0 + _rnd(i, 22) * 110.0
+		var x := roundf(i * step + _rnd(i, 23) * 60.0 - offset)
+		var y := roundf(158.0 + _rnd(i, 24) * 16.0)
+		var h := 3.0 + roundf(_rnd(i, 25) * 3.0)
+		# zubaté okraje po 4 px
+		var cx := x
+		while cx < x + w:
+			var edge := absf((cx - x) / w - 0.5) * 2.0
+			var hh := roundf(h * (1.0 - edge * edge * 0.8))
+			draw_rect(Rect2(cx, y - hh * 0.5, 4, hh), Color("232821"))
+			draw_rect(Rect2(cx, y - hh * 0.5, 4, 1), Color("3a4035"))
+			cx += 4.0
+		# třpyt hladiny
+		var sh := fmod(t * 6.0 + i * 3.0, w - 10.0)
+		draw_rect(Rect2(roundf(x + 5.0 + sh), y, 5, 1), Color("5a5f52"))
 
 
 ## Svislý přechod mlhy (od průhledné nahoře k mlze uprostřed a zpět).
