@@ -12,13 +12,14 @@ var t := 0.0
 var struck := false
 var head: Texture2D
 var fire: Texture2D
+var body: Texture2D
 var bolts: Array = []
 var add_mat := CanvasItemMaterial.new()
 
 const STRIKE_LIGHTNING := 0.12
-const STRIKE_DRAGON := 0.55
+const STRIKE_DRAGON := 0.75
 const LIFE_LIGHTNING := 0.95
-const LIFE_DRAGON := 1.9
+const LIFE_DRAGON := 1.8
 
 
 func _ready() -> void:
@@ -26,6 +27,7 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	head = load("res://art/fx/dragon_head.webp")
 	fire = load("res://art/fx/fire.webp")
+	body = load("res://art/fx/dragon_body.webp")
 	bolts = [load("res://art/fx/lightning_0.webp"), load("res://art/fx/lightning_1.webp")]
 	add_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	if mode == "fire":
@@ -93,39 +95,52 @@ func _draw_lightning() -> void:
 		draw_circle(Vector2(p.x, p.y - 2.0), 7.0, Color(0.85, 0.95, 1.0, 0.55 * fade))
 
 
+## Dračí hlava proletí šikmo dolů přes celou obrazovku, za ní se táhne
+## dlouhé přízračné tělo až za okraj (konec draka není nikdy vidět).
+const DIVE := 0.38          # sklon letu dolů (rad)
+const FLY_TIME := 1.7
+
+
+func _head_s() -> float:
+	# vzdálenost hlavy od středu obrazovky po dráze letu
+	var k := clampf(t / FLY_TIME, 0.0, 1.0)
+	return lerpf(-520.0, 560.0, k)
+
+
 func _draw_dragon() -> void:
-	var size := get_viewport_rect().size
 	var cam := get_viewport().get_camera_2d()
-	var left := 0.0
+	var center := Vector2(240.0, 120.0)
 	if cam != null:
-		left = cam.get_screen_center_position().x - 240.0
-	var hh := 200.0
-	var hw := head.get_width() * hh / head.get_height()
-	# hlava se vysune zleva, pak se při chrlení otřásá, nakonec se rozplyne
-	var slide := clampf(t / 0.45, 0.0, 1.0)
-	slide = 1.0 - pow(1.0 - slide, 3.0)
-	var fade := clampf(1.0 - (t - 1.45) / 0.45, 0.0, 1.0)
-	var shake := Vector2.ZERO
-	if t > STRIKE_DRAGON and t < 1.45:
-		shake = Vector2(randf_range(-2.0, 2.0), randf_range(-2.0, 2.0))
-	var hx := left - hw + slide * (hw * 0.62) + shake.x
-	var hy := 40.0 + shake.y
-	if mode == "dragon":
-		draw_texture_rect(head, Rect2(hx, hy, hw, hh), false, Color(1, 1, 1, 0.92 * fade))
+		center = cam.get_screen_center_position() + Vector2(0.0, -30.0)
+	var dir := Vector2(cos(DIVE), sin(DIVE))
+	var nrm := Vector2(-dir.y, dir.x)
+	var hp := center + dir * _head_s()
+	var fade := clampf((LIFE_DRAGON - t) / 0.25, 0.0, 1.0)
+	if mode == "fire":
+		# oheň z tlamy šikmo dolů před hlavou, za postavami
+		if t > 0.25 and t < FLY_TIME:
+			var flick := 1.0 + 0.08 * sin(t * 50.0)
+			var mouth := hp + dir * 70.0 + nrm * 18.0
+			var ang := DIVE + 0.28
+			var fl := 300.0 * flick
+			var fh := 170.0 * flick
+			draw_set_transform(mouth, ang, Vector2.ONE)
+			draw_texture_rect(fire, Rect2(-10.0, -fh * 0.5, fl, fh), false, Color(1, 1, 1, 0.95 * fade))
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
-	# oheň z tlamy přes celou šířku obrazovky
-	if t > STRIKE_DRAGON - 0.05:
-		var k := clampf((t - STRIKE_DRAGON + 0.05) / 0.3, 0.0, 1.0)
-		var mouth := Vector2(hx + hw * 0.93, hy + hh * 0.62)
-		var reach := (left + 480.0 + 60.0 - mouth.x) * k
-		var flick := 1.0 + 0.06 * sin(t * 50.0)
-		var fh := 190.0 * flick
-		# kužel ohně – lehce svažitý k zemi, ve třech vrstvách pro hustotu
-		for j in 3:
-			var off := float(j) * 0.12
-			var rr := Rect2(mouth.x - 12.0 + j * 20.0, mouth.y - fh * 0.32 + j * 10.0,
-				reach * (1.0 - off * 0.5), fh * (1.0 - off))
-			var c := Color(1, 1, 1, (0.95 - off) * fade)
-			draw_texture_rect(fire, rr, false, c)
-		# žhnoucí opar nad zemí
-		draw_rect(Rect2(left, 180.0, 480.0, 120.0), Color(1.0, 0.45, 0.1, 0.18 * k * fade))
+	# tělo – články podél dráhy za hlavou, vlní se
+	var bw := float(body.get_width()) * 110.0 / float(body.get_height())
+	var seg := bw * 0.55
+	for k in range(14, -1, -1):
+		var back := 40.0 + seg * k
+		var wob := sin(k * 0.9 - t * 7.0) * 12.0
+		var c := hp - dir * back + nrm * wob
+		var rot := DIVE + cos(k * 0.9 - t * 7.0) * 0.08
+		draw_set_transform(c, rot, Vector2.ONE)
+		draw_texture_rect(body, Rect2(-bw * 0.5, -55.0, bw, 110.0), false, Color(1, 1, 1, 0.9 * fade))
+	# hlava – skloněná ve směru letu
+	var hh := 170.0
+	var hw := head.get_width() * hh / head.get_height()
+	draw_set_transform(hp, DIVE, Vector2.ONE)
+	draw_texture_rect(head, Rect2(-hw * 0.45, -hh * 0.5, hw, hh), false, Color(1, 1, 1, 0.95 * fade))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

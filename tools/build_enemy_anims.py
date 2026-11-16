@@ -18,6 +18,7 @@ SETS = {
         "idle": ("idle", list(range(0, 61, 2)), True, -1),
         "walk": ("walk", list(range(0, 31)), True, -1),
         "run": ("run", list(range(8, 48)), True, -1),
+        "ram": ("ram", list(range(28, 37)), False, -1),
         "attack": ("attack", [i for i in range(9, 43) if i != 28], False, 18),
         "block": ("block", [i for i in range(6, 37) if i != 10], False, -1),
         "fall": ("fall", [i for i in range(9, 37) if i != 19], False, -1),

@@ -193,8 +193,13 @@ func _anim_pick() -> Array:
 			return ["walk", int(anim_clock * (8.0 if kind == "ogre" else 12.0)), 0.0]
 		S.ATTACK:
 			if move_name == "ogre_charge":
-				if anim_tex.has("run"):
+				# rozběh, pak výpad skloněným ramenem (náraz na snímcích 54–62)
+				if anim_tex.has("ram") and state_t >= 50:
+					return ["ram", (state_t - 50) / 3, 0.14]
+				if anim_tex.has("run") and state_t >= 18:
 					return ["run", int(anim_clock * 16.0), 0.0]
+				if anim_tex.has("run"):
+					return ["idle", 0, 0.0]
 				return ["walk", int(anim_clock * 24.0), 0.0]
 			return ["attack", _move_frame("attack"), 0.0]
 		S.HURT:

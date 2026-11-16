@@ -437,7 +437,7 @@ func _take_shots() -> void:
 	stage.player.set_state(Fighter.S.IDLE)
 	stage.player.invuln = 0
 	await _tap("magic")
-	await _wait(1.25)
+	await _wait(0.95)
 	_save_shot("8_magie")
 	await _wait(1.0)
 	pause()
