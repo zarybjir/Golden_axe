@@ -123,6 +123,9 @@ func _ready() -> void:
 		lich_scale = 1.35 if kind == "lich_king" else 1.0
 		sprite_tex = l_tex["idle"]
 		sprite_h = 104.0 * lich_scale
+		if ResourceLoader.exists("res://scripts/lich_anims.gd"):
+			var lan = load("res://scripts/lich_anims.gd")
+			setup_anims(lan.ANIMS, lan.K * lich_scale)
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if kind == "chamois":
 		for n in ChamoisData.POSE.keys():
@@ -1145,8 +1148,30 @@ func _lich_pose() -> String:
 	return "idle"
 
 
+## Snímek animace liche: [animace, index] nebo [] = statická póza.
+func _lich_frame() -> Array:
+	if anim_tex.is_empty() or state == S.DOWN or state == S.DEAD or state == S.GETUP or state == S.HURT:
+		return []
+	match state:
+		S.WALK:
+			return ["walk", int(anim_clock * 10.0)]
+		S.ATTACK:
+			# výstřel ve videu (snímek "impact") = chvíle, kdy hra vypustí střelu (state_t 34)
+			var n: int = anim_tex["cast"].size()
+			var imp: int = anim_set["cast"]["impact"]
+			var t := float(state_t)
+			if t < 34.0:
+				return ["cast", int(t / 34.0 * float(imp))]
+			return ["cast", mini(n - 1, imp + int((t - 34.0) / 24.0 * float(n - imp)))]
+	return ["walk", 0]
+
+
 func _draw_lich() -> void:
 	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var lf := _lich_frame()
+	if not lf.is_empty():
+		_draw_zombie_anim(lf[0], int(lf[1]), 18.0 * lich_scale)
 		return
 	var LD = load("res://scripts/lich_data.gd")
 	var nm := _lich_pose()
