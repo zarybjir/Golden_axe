@@ -30,6 +30,9 @@ const KINDS := {
 	"golem": {"hp": 300, "range": 50.0, "speed": Vector2(30, 20), "reach": 30.0, "attack": "golem_punch", "cool": 60,
 		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3500, "armor": true,
 		"name": "KAMENNÝ OBR", "hit_w": 18.0, "depth": 12.0},
+	# Démonický kamzík (hory): drží si odstup, vzepne se a rozběhne se, narazí rohama.
+	"chamois": {"hp": 40, "range": 22.0, "speed": Vector2(95, 58), "reach": 20.0, "attack": "chamois_charge", "cool": 80,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 300, "hit_w": 22.0, "depth": 4.0},
 	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
 	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
@@ -49,6 +52,8 @@ var sprite_h := 100.0
 const HOVER_Z := 64.0
 const ZombieData := preload("res://scripts/zombie_data.gd")
 const GolemData := preload("res://scripts/golem_data.gd")
+const ChamoisData := preload("res://scripts/chamois_data.gd")
+var c_tex := {}
 var g_tex := {}
 var throw_cool := 120
 var throw_target := Vector2.ZERO
@@ -96,6 +101,12 @@ func _ready() -> void:
 			var za = load("res://scripts/zombie_anims.gd")
 			setup_anims(za.ANIMS, za.K)
 		sprite_h = float(ZombieData.POSE["walk"][1])
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if kind == "chamois":
+		for n in ChamoisData.POSE.keys():
+			c_tex[n] = load("res://art/enemy_sprite/kamzik_%s.png" % n)
+		sprite_tex = c_tex["idle"]
+		sprite_h = 76.0
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if kind == "golem":
 		for n in GolemData.POSE.keys():
@@ -202,6 +213,9 @@ func _ai() -> void:
 		return
 	if kind == "zombie" and z_phase == 1:
 		_zombie_fetch_arm()
+		return
+	if kind == "chamois":
+		_chamois_ai(p)
 		return
 	if kind == "golem":
 		throw_cool -= 1
@@ -377,6 +391,9 @@ func _anim_pick() -> Array:
 ## Lidojed a netopýr mají zatím jen jeden obrázek – pohyb se dopočítává
 ## (kymácení, výpad, záklon, pád, mávání křídly).
 func _draw() -> void:
+	if kind == "chamois":
+		_draw_chamois()
+		return
 	if kind == "golem":
 		_draw_golem()
 		return
@@ -902,5 +919,65 @@ func _draw_golem() -> void:
 		hip = Vector2.ZERO
 	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) \
 		* Transform2D(0.0, off + hip) * Transform2D(rot, Vector2.ZERO) * Transform2D(0.0, -hip))
+	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+# ---------------------------------------------------------------- hory: démonický kamzík
+
+func _chamois_ai(p) -> void:
+	var dx: float = p.pos.x - pos.x
+	var dy: float = p.pos.y - pos.y
+	facing = 1 if dx > 0.0 else -1
+	if not p.alive():
+		_walk_to(Vector2(p.pos.x - facing * 160.0, pos.y))
+		return
+	# z odstupu, ve stejné řadě: vzepne se a vyrazí
+	if cooldown <= 0 and absf(dx) > 70.0 and absf(dx) < 250.0 and absf(dy) < 8.0:
+		start_move("chamois_charge")
+		Sfx.play("roar", 1.9)
+		return
+	_walk_to(Vector2(p.pos.x - facing * 160.0, p.pos.y))
+
+
+func _chamois_pose() -> String:
+	match state:
+		S.ATTACK:
+			if state_t < 30:
+				return "rear"
+			if state_t < 74:
+				return "charge"
+			return "idle"
+		S.WALK:
+			return "run1" if fmod(anim_clock * 7.0, 1.0) < 0.5 else "run2"
+		S.DOWN, S.DEAD:
+			return "down"
+	return "idle"
+
+
+func _draw_chamois() -> void:
+	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var nm := _chamois_pose()
+	var tex: Texture2D = c_tex[nm]
+	var m: Array = ChamoisData.POSE[nm]
+	var w := float(m[0])
+	var h := float(m[1])
+	var ax := float(m[2])
+	if drown_t == 0:
+		_ellipse(Vector2(0, z), 26.0, 5.0, Color(0, 0, 0, 0.3))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.55, 0.5)
+	var off := Vector2.ZERO
+	var rot := 0.0
+	if nm == "run1" or nm == "run2":
+		off.y = -4.0 - absf(sin(anim_clock * 14.0)) * 4.0   # v cvalu nad zemí
+	elif nm == "charge":
+		off.y = -absf(sin(float(state_t) * 0.5)) * 4.0
+		rot = sin(float(state_t) * 0.5) * 0.04
+	elif state == S.HURT:
+		rot = -0.15
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) * Transform2D(rot, off))
 	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
 	draw_set_transform_matrix(Transform2D.IDENTITY)

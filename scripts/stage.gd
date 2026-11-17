@@ -43,8 +43,8 @@ const STAGES := [
 		{"x": 1760.0, "enemies": [["ogre", 1], ["vine", -1], ["native", 1]], "boss": true},
 	]},
 	{"name": "Horský průsmyk", "biome": "mountain", "rocks": true, "waves": [
-		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", 1]]},
-		{"x": 860.0, "enemies": [["rider", 1], ["ghoul", -1], ["skeleton", 1]]},
+		{"x": 420.0, "enemies": [["chamois", 1], ["skeleton", -1], ["ghoul", 1]]},
+		{"x": 860.0, "enemies": [["rider", 1], ["chamois", -1], ["skeleton", 1]]},
 		{"x": 1300.0, "enemies": [["golem", 1], ["skeleton", -1], ["ghoul", -1]]},
 		{"x": 1760.0, "enemies": [["dragon", 1], ["ghoul", -1]], "boss": true},
 	]},
@@ -97,6 +97,9 @@ func _preload_enemies() -> void:
 	var EA = load("res://scripts/enemy_anims.gd")
 	for k in kinds:
 		var sets: Dictionary = EA.SETS.get(k, {}).get("anims", {})
+		if k == "chamois":
+			for n in ["idle", "run1", "run2", "rear", "charge", "down"]:
+				_warm.append(load("res://art/enemy_sprite/kamzik_%s.png" % n))
 		if k == "golem":
 			for n in ["idle", "walk", "wind", "punch", "tear", "hold"]:
 				_warm.append(load("res://art/enemy_sprite/golem_%s.png" % n))

@@ -19,6 +19,7 @@ from build_bg import grade, RES  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BARREL_H = 34      # výška sudu ve hře (logické px)
 DRAGON_H = 136
+CHAMOIS_H = 76     # výška démonického kamzíka (stoj)
 GOLEM_H = 150      # výška kamenného obra (stoj) ve hře
 ZOMBIE_H = 98       # výška zombie (chůze) ve hře     # výška draka v klidu (logické px)
 
@@ -119,6 +120,22 @@ def main():
                 fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
             fo.write("}\n")
         print(gmeta)
+    cpath = f"{ROOT}/art/source/grim_chamois.png"
+    if os.path.exists(cpath):
+        cp_ = grid(cpath, 3, 2)
+        names = ["idle", "run1", "run2", "rear", "charge", "down"]
+        kc = CHAMOIS_H * RES / cp_[0].shape[0]
+        cmeta = {}
+        for name, c in zip(names, cp_):
+            w, h = save(c, kc, f"{ROOT}/art/enemy_sprite/kamzik_{name}.png")
+            cmeta[name] = [round(w / RES, 1), round(h / RES, 1), round(w / RES * 0.5, 1)]
+        with open(f"{ROOT}/scripts/chamois_data.gd", "w") as fo:
+            fo.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_props.py\n")
+            fo.write("## póza: [šířka, výška, kotva x] v logických px\n\nconst POSE := {\n")
+            for n_, v in cmeta.items():
+                fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
+            fo.write("}\n")
+        print(cmeta)
     idle, roar = parts(f"{ROOT}/art/source/grim_dragon.png", 2)
     k = DRAGON_H * RES / idle.shape[0]   # obě pózy ve stejném měřítku
     meta = {}
