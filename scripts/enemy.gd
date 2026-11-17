@@ -221,7 +221,7 @@ func _ogre_retaliate() -> void:
 	hurt_len = 10
 	set_state(S.HURT)
 	if p.alive() and absf(p.pos.x - pos.x) < 90.0 and absf(p.pos.y - pos.y) < 20.0:
-		p.take_hit(4, facing, false, 190.0)
+		p.take_hit(0, facing, false, 190.0)   # jen odstrčí, bez zranění
 		stage.shake(3.0, 0.15)
 		Sfx.play("heavy", 0.6)
 	charge_pending = 34

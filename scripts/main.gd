@@ -759,7 +759,7 @@ func _zombie_test() -> void:
 			f.take_hit(14, 1, true, 0.0)
 			for i in 12:
 				await _wait(0.15)
-				print("ogre state=%d move=%s hp=%d | hero state=%d x=%.0f" % [f.state, f.move_name, f.hp, stage.player.state, stage.player.pos.x - f.pos.x])
+				print("ogre state=%d move=%s hp=%d | hero state=%d hp=%d x=%.0f" % [f.state, f.move_name, f.hp, stage.player.state, stage.player.hp, stage.player.pos.x - f.pos.x])
 			print("OGRETEST done")
 			break
 	get_tree().quit(0)
