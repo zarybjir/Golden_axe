@@ -124,7 +124,7 @@ func _difficulty_text() -> String:
 
 
 func _controls_hint() -> String:
-	return _difficulty_text() + "\nControls can be changed in the Controls menu."
+	return _difficulty_text() + "\nKeys can be changed in Controls."
 
 
 # ---------------------------------------------------------------- ovládání
