@@ -581,10 +581,9 @@ func _zombie_pose() -> String:
 		return "walk"
 	if z_phase == 1:
 		return "onearm"
-	if state == S.ATTACK and not move.is_empty():
-		var h: Array = move["hit"]
-		return "club_up" if state_t < int(h[0]) else "club_hit"
-	return "club_hit"
+	# s utrženou rukou vždy póza "club_up" (drží ji správnou, vzdálenější rukou);
+	# úder dělá předklon celého trupu
+	return "club_up"
 
 
 func _draw_zombie() -> void:
@@ -618,18 +617,25 @@ func _draw_zombie() -> void:
 				rot = sin(t * 1.8) * 0.03
 		S.ATTACK:
 			var hh: Array = move["hit"]
+			var club := z_phase == 2
 			if state_t < int(hh[0]):
-				rot = -0.14 * clampf(float(state_t) / float(hh[0]), 0.0, 1.0)
+				rot = (-0.22 if club else -0.14) * clampf(float(state_t) / float(hh[0]), 0.0, 1.0)
 			else:
 				var r := 1.0 - clampf(float(state_t - int(hh[1])) / 12.0, 0.0, 1.0)
-				rot = 0.22 * r
-				off.x = 10.0 * r
+				# s rukou jako kyjem: prudký předklon, ruka seká shora dopředu dolů
+				rot = (0.55 if club else 0.22) * r
+				off.x = (8.0 if club else 10.0) * r
 		S.HURT:
 			rot = -0.16
 			off.x = -3.0
 		S.DOWN, S.DEAD:
 			rot = -minf(float(state_t) / 12.0, 1.0) * 1.45
-	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) * Transform2D(rot, off))
+	# otáčení kolem boků, ne kolem chodidel
+	var hip := Vector2(0.0, -h * 0.42)
+	if state == S.DOWN or state == S.DEAD:
+		hip = Vector2.ZERO   # pád: kolem chodidel
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) \
+		* Transform2D(0.0, off + hip) * Transform2D(rot, Vector2.ZERO) * Transform2D(0.0, -hip))
 	if sink > 0.0:
 		# vylézá ze země: kreslí se jen to, co je nad zemí
 		var vis := clampf(h - sink, 0.0, h)
