@@ -26,6 +26,10 @@ const KINDS := {
 	# a mlátí s ní; padne po dalších 6 zásazích. Grafika: art/enemy_sprite/zombie_*.png
 	"zombie": {"hp": 999, "range": 30.0, "speed": Vector2(24, 14), "reach": 20.0, "attack": "zombie_claw", "cool": 70,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 400, "hit_w": 12.0},
+	# Kamenný obr (hory): zblízka mlátí pěstí, zdálky vyrve ze země balvan a hodí ho.
+	"golem": {"hp": 300, "range": 50.0, "speed": Vector2(30, 20), "reach": 30.0, "attack": "golem_punch", "cool": 60,
+		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3500, "armor": true,
+		"name": "KAMENNÝ OBR", "hit_w": 18.0, "depth": 12.0},
 	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
 	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
@@ -44,6 +48,11 @@ var sprite_tex: Texture2D = null   # nepřítel z jednoho obrázku, pohyb dopoč
 var sprite_h := 100.0
 const HOVER_Z := 64.0
 const ZombieData := preload("res://scripts/zombie_data.gd")
+const GolemData := preload("res://scripts/golem_data.gd")
+var g_tex := {}
+var throw_cool := 120
+var throw_target := Vector2.ZERO
+var boulders: Array = []   # [Node2D, pozice na zemi, z, vz, vx, vy, textura]
 
 # zombie
 const Z_ARM_HITS := 3      # po tolika zásazích přijde o ruku
@@ -87,6 +96,12 @@ func _ready() -> void:
 			var za = load("res://scripts/zombie_anims.gd")
 			setup_anims(za.ANIMS, za.K)
 		sprite_h = float(ZombieData.POSE["walk"][1])
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if kind == "golem":
+		for n in GolemData.POSE.keys():
+			g_tex[n] = load("res://art/enemy_sprite/golem_%s.png" % n)
+		sprite_tex = g_tex["idle"]
+		sprite_h = 150.0
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if cfg.get("fly", false):
 		flying = true
@@ -142,6 +157,8 @@ func tick() -> void:
 	physics_step()
 	if arm_node != null:
 		_arm_step()
+	if not boulders.is_empty():
+		_boulder_step()
 	if rise_t > 0:
 		_rise_step()
 		position = Vector2(roundf(pos.x), roundf(pos.y - z + sink))
@@ -158,6 +175,8 @@ func tick() -> void:
 		S.IDLE, S.WALK:
 			_ai()
 		S.ATTACK:
+			if kind == "golem" and move_name == "golem_throw":
+				_golem_throw_step()
 			if kind == "bat":
 				# střemhlavý útok: sletí dolů k hrdinovi a zase vzlétne
 				var k := float(state_t) / float(move["len"])
@@ -181,6 +200,15 @@ func _ai() -> void:
 	if kind == "zombie" and z_phase == 1:
 		_zombie_fetch_arm()
 		return
+	if kind == "golem":
+		throw_cool -= 1
+		var ddx: float = absf(p.pos.x - pos.x)
+		if throw_cool <= 0 and ddx > 110.0 and ddx < 330.0 and p.alive():
+			facing = 1 if p.pos.x > pos.x else -1
+			throw_target = p.pos
+			start_move("golem_throw")
+			throw_cool = 200 + randi() % 120
+			return
 	var dx: float = p.pos.x - pos.x
 	var dy: float = p.pos.y - pos.y
 	facing = 1 if dx > 0.0 else -1
@@ -280,6 +308,18 @@ func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
 	if kind == "zombie" and state != S.DOWN and state != S.DEAD:
 		_zombie_hit(dir)
 		return
+	if kind == "golem" and state != S.DOWN and state != S.DEAD:
+		# kámen: nepadá a útok se nepřeruší, jen se zachvěje
+		hp = maxi(hp - dmg, 0)
+		flash = 6
+		Sfx.play("hit", 0.5)
+		stage.fx.burst(Vector2(pos.x - dir * 10.0, pos.y - 90.0), Color("6a5e50"), 8, 120.0, 0.4, 400.0, 2.5)
+		if hp <= 0:
+			super.take_hit(0, dir, true, 0.0)
+		elif state != S.ATTACK and incoming_move == "jatk":
+			hurt_len = 14
+			set_state(S.HURT)
+		return
 	if _wants_block(knock):
 		blocking = true
 		hurt_len = 40   # krytí se přehraje celé
@@ -334,6 +374,9 @@ func _anim_pick() -> Array:
 ## Lidojed a netopýr mají zatím jen jeden obrázek – pohyb se dopočítává
 ## (kymácení, výpad, záklon, pád, mávání křídly).
 func _draw() -> void:
+	if kind == "golem":
+		_draw_golem()
+		return
 	if kind == "zombie":
 		_draw_zombie()
 		return
@@ -575,6 +618,10 @@ func _take_arm() -> void:
 func _exit_tree() -> void:
 	if arm_node != null and is_instance_valid(arm_node):
 		arm_node.queue_free()
+	for b in boulders:
+		if is_instance_valid(b[0]):
+			b[0].queue_free()
+	boulders.clear()
 
 
 func _zombie_pose() -> String:
@@ -603,7 +650,7 @@ func _zombie_frame() -> Array:
 	var a := "attack" if z_phase == 0 else "attack2"
 	match state:
 		S.WALK:
-			return [w, int(anim_clock * (10.0 if z_phase == 0 else 16.0))]
+			return [w, int(anim_clock * (6.0 if z_phase == 0 else 16.0))]
 		S.ATTACK:
 			if not move.is_empty():
 				return [a, _move_frame(a)]
@@ -704,3 +751,128 @@ func _draw_zombie_anim(nm: String, i: int) -> void:
 		draw_texture(tex, off, mod)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	_draw_extra()
+
+
+# ---------------------------------------------------------------- hory: kamenný obr
+
+func _golem_throw_step() -> void:
+	match state_t:
+		12:
+			# vyrve balvan ze země
+			stage.shake(5.0, 0.3)
+			stage.fx.burst(Vector2(pos.x + facing * 40.0, pos.y - 6.0), Color("4a3a2a"), 18, 140.0, 0.6, 420.0, 3.0)
+			stage.fx.dust(Vector2(pos.x + facing * 40.0, pos.y), 14)
+			Sfx.play("heavy", 0.5)
+		60:
+			_throw_boulder()
+
+
+func _throw_boulder() -> void:
+	var tex: Texture2D = load("res://art/props/rock_%d.png" % (1 + randi() % 2))
+	var start := Vector2(pos.x + facing * 10.0, pos.y)
+	var tgt := throw_target + Vector2(randf_range(-10.0, 10.0), 0.0)
+	var t := clampf(absf(tgt.x - start.x) / 260.0, 0.5, 1.2)   # doba letu
+	var n := Node2D.new()
+	n.z_as_relative = false
+	n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	var b := [n, start, 160.0, 160.0 / t * 0.2, (tgt.x - start.x) / t, (tgt.y - start.y) / t, tex, 0.0]
+	# z = výška nad zemí; vz tak, aby balvan dopadl v čase t
+	b[3] = (0.5 * 900.0 * t * t - 160.0) / t
+	n.draw.connect(_draw_boulder.bind(b))
+	stage.add_child(n)
+	boulders.append(b)
+	Sfx.play("dodge", 0.6)
+
+
+func _boulder_step() -> void:
+	for b in boulders.duplicate():
+		var n: Node2D = b[0]
+		var p: Vector2 = b[1]
+		b[3] = float(b[3]) - 900.0 * DT
+		b[2] = float(b[2]) + float(b[3]) * DT
+		p += Vector2(float(b[4]), float(b[5])) * DT
+		b[1] = p
+		b[7] = float(b[7]) + DT
+		var pl = stage.player
+		var hit := false
+		if pl.alive() and pl.can_be_hit() and absf(pl.pos.x - p.x) < 16.0 and absf(pl.pos.y - p.y) < 10.0 \
+				and absf(pl.z - float(b[2])) < 40.0:
+			pl.take_hit(14, 1 if float(b[4]) > 0.0 else -1, true, 0.0)
+			hit = true
+		if hit or float(b[2]) <= 0.0:
+			stage.shake(4.0, 0.25)
+			stage.fx.burst(p + Vector2(0, -8), Color("5a4a3a"), 16, 150.0, 0.6, 420.0, 3.0)
+			stage.fx.dust(p, 10)
+			Sfx.play("heavy", 0.7)
+			n.queue_free()
+			boulders.erase(b)
+			continue
+		n.z_index = int(p.y) + 1
+		n.queue_redraw()
+
+
+func _draw_boulder(b: Array) -> void:
+	var n: Node2D = b[0]
+	var tex: Texture2D = b[6]
+	var p: Vector2 = b[1]
+	var w := tex.get_width() / 3.0 * 1.4
+	var h := tex.get_height() / 3.0 * 1.4
+	var pts := PackedVector2Array()
+	for i in 12:
+		var an := TAU * i / 12.0
+		pts.append(Vector2(p.x + cos(an) * w * 0.45, p.y + sin(an) * 3.5))
+	n.draw_colored_polygon(pts, Color(0, 0, 0, 0.3))
+	n.draw_set_transform(Vector2(p.x, p.y - float(b[2]) - h * 0.5), float(b[7]) * 5.0 * signf(float(b[4])), Vector2.ONE)
+	n.draw_texture_rect(tex, Rect2(-w * 0.5, -h * 0.5, w, h), false, Color(0.9, 0.88, 0.86))
+
+
+func _golem_pose() -> String:
+	if state == S.ATTACK and not move.is_empty():
+		if move_name == "golem_throw":
+			if state_t < 34:
+				return "tear"
+			return "hold"
+		var h: Array = move["hit"]
+		return "wind" if state_t < int(h[0]) else "punch"
+	if state == S.WALK:
+		return "walk" if fmod(anim_clock * 1.6, 1.0) < 0.5 else "idle"
+	return "idle"
+
+
+func _draw_golem() -> void:
+	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var nm := _golem_pose()
+	var tex: Texture2D = g_tex[nm]
+	var m: Array = GolemData.POSE[nm]
+	var w := float(m[0])
+	var h := float(m[1])
+	var ax := float(m[2])
+	_ellipse(Vector2(0, z), 34.0, 7.0, Color(0, 0, 0, 0.35))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.7, 0.62)
+	var rot := 0.0
+	var off := Vector2.ZERO
+	match state:
+		S.WALK:
+			off.y = -absf(sin(anim_clock * PI * 1.6)) * 2.0
+			rot = sin(anim_clock * PI * 1.6) * 0.025
+		S.ATTACK:
+			if move_name == "golem_throw" and state_t >= 56 and state_t < 76:
+				rot = 0.28 * sin(float(state_t - 56) / 20.0 * PI)   # hod: předklon
+			elif move_name == "golem_punch":
+				var hh: Array = move["hit"]
+				if state_t >= int(hh[0]):
+					off.x = 8.0 * (1.0 - clampf(float(state_t - int(hh[1])) / 14.0, 0.0, 1.0))
+		S.HURT:
+			off.x = -3.0
+		S.DOWN, S.DEAD:
+			rot = -minf(float(state_t) / 16.0, 1.0) * 1.4
+	var hip := Vector2(0.0, -h * 0.45)
+	if state == S.DOWN or state == S.DEAD:
+		hip = Vector2.ZERO
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) \
+		* Transform2D(0.0, off + hip) * Transform2D(rot, Vector2.ZERO) * Transform2D(0.0, -hip))
+	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)

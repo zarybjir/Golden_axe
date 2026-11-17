@@ -45,7 +45,7 @@ const STAGES := [
 	{"name": "Horský průsmyk", "biome": "mountain", "rocks": true, "waves": [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", 1]]},
 		{"x": 860.0, "enemies": [["rider", 1], ["ghoul", -1], ["skeleton", 1]]},
-		{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["ghoul", -1]]},
+		{"x": 1300.0, "enemies": [["golem", 1], ["skeleton", -1], ["ghoul", -1]]},
 		{"x": 1760.0, "enemies": [["dragon", 1], ["ghoul", -1]], "boss": true},
 	]},
 ]
@@ -84,10 +84,36 @@ var time := 0.0
 var finished := false
 
 
+## Textury animací všech nepřátel úrovně se načtou hned na začátku a drží se
+## v paměti – jinak se hra při prvním objevení nepřítele na chvíli zasekne.
+var _warm: Array = []
+
+
+func _preload_enemies() -> void:
+	var kinds := {}
+	for w in waves:
+		for e in w["enemies"]:
+			kinds[e[0]] = true
+	var EA = load("res://scripts/enemy_anims.gd")
+	for k in kinds:
+		var sets: Dictionary = EA.SETS.get(k, {}).get("anims", {})
+		if k == "golem":
+			for n in ["idle", "walk", "wind", "punch", "tear", "hold"]:
+				_warm.append(load("res://art/enemy_sprite/golem_%s.png" % n))
+		if k == "zombie" and ResourceLoader.exists("res://scripts/zombie_anims.gd"):
+			sets = load("res://scripts/zombie_anims.gd").ANIMS
+			for n in ["walk", "reach", "onearm", "club_up", "club_hit", "arm"]:
+				_warm.append(load("res://art/enemy_sprite/zombie_%s.png" % n))
+		for a in sets.values():
+			for path in a["frames"]:
+				_warm.append(load(path))
+
+
 func _ready() -> void:
 	var st: Dictionary = STAGES[stage_index]
 	waves = st["waves"]
 	biome = st["biome"]
+	_preload_enemies()
 	var bg_layer := CanvasLayer.new()
 	bg_layer.layer = -10
 	add_child(bg_layer)
@@ -244,7 +270,7 @@ func _spawn_wave(w: Dictionary) -> void:
 				boss = cr
 				Sfx.play("roar", 0.7)
 		else:
-			var rise: bool = not dirt_tex.is_empty() and (kind == "skeleton" or kind == "ghoul" or kind == "zombie")
+			var rise: bool = not dirt_tex.is_empty() and kind == "zombie"
 			if rise:
 				# vyleze ze země někde na obrazovce, ne moc blízko hrdiny
 				for tries in 12:
@@ -254,7 +280,7 @@ func _spawn_wave(w: Dictionary) -> void:
 			var en := _make_enemy(kind, at, side)
 			if rise:
 				en.start_rise(dirt_tex[randi() % dirt_tex.size()])
-			if kind == "ogre":
+			if kind == "ogre" or kind == "golem":
 				boss = en
 				Sfx.play("roar")
 		i += 1

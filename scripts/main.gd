@@ -462,6 +462,18 @@ func _take_shots() -> void:
 	stage.debug_jump_to_wave(2)
 	await _wait(3.0)
 	_save_shot("5_obr")
+	for f in stage.fighters:
+		if f.get("kind") == "golem":
+			f.pos = Vector2(stage.cam_x + 120.0, 240.0)
+			stage.player.pos = Vector2(stage.cam_x - 100.0, 240.0)
+			f.facing = -1
+			f.set("throw_target", stage.player.pos)
+			f.start_move("golem_throw")
+			await _wait(0.4)
+			_save_shot("5a_obr_vyrva")
+			await _wait(0.9)
+			_save_shot("5b_obr_hod")
+			break
 	stage.debug_jump_to_wave(3)
 	await _wait(3.6)
 	_save_shot("6_drak")

@@ -19,6 +19,7 @@ from build_bg import grade, RES  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BARREL_H = 34      # výška sudu ve hře (logické px)
 DRAGON_H = 136
+GOLEM_H = 150      # výška kamenného obra (stoj) ve hře
 ZOMBIE_H = 98       # výška zombie (chůze) ve hře     # výška draka v klidu (logické px)
 
 
@@ -38,6 +39,27 @@ def parts(path, n, rows=False):
         c[..., 3] = np.where(m[y0:y1, x0:x1], c[..., 3], 0)
         out.append(((y0 + y1) / 2 > a.shape[0] / 2 if rows else 0, x0, c))
     return [o[2] for o in sorted(out, key=lambda o: (o[0], o[1]))]
+
+
+def grid(path, cols, rows):
+    """Póza v každé buňce mřížky (zleva doprava, shora dolů); bere se největší tvar v buňce."""
+    a = np.asarray(Image.open(path).convert("RGBA"))
+    H, W = a.shape[:2]
+    out = []
+    for r in range(rows):
+        for c in range(cols):
+            cell = a[r * H // rows:(r + 1) * H // rows, c * W // cols:(c + 1) * W // cols]
+            fg = cell[..., 3] > 100
+            lab, k = ndimage.label(ndimage.binary_dilation(fg, iterations=4))
+            sizes = ndimage.sum(fg, lab, range(k + 1))
+            i = int(np.argmax(sizes[1:])) + 1
+            m = (lab == i) & (cell[..., 3] > 0)
+            ys, xs = np.nonzero(m)
+            x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
+            cc = cell[y0:y1, x0:x1].copy()
+            cc[..., 3] = np.where(m[y0:y1, x0:x1], cc[..., 3], 0)
+            out.append(cc)
+    return out
 
 
 def save(arr, k, path):
@@ -79,6 +101,24 @@ def main():
                 fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
             fo.write("}\n")
         print(zmeta)
+    gpath = f"{ROOT}/art/source/grim_golem.png"
+    if os.path.exists(gpath):
+        gp = grid(gpath, 3, 2)
+        names = ["idle", "walk", "wind", "punch", "tear", "hold"]
+        kg = GOLEM_H * RES / gp[0].shape[0]
+        gmeta = {}
+        for name, c in zip(names, gp):
+            w, h = save(c, kg, f"{ROOT}/art/enemy_sprite/golem_{name}.png")
+            al = c[..., 3] > 100
+            ys, xs = np.nonzero(al[int(al.shape[0] * 0.9):])
+            gmeta[name] = [round(w / RES, 1), round(h / RES, 1), round(float(xs.mean()) * kg / RES, 1)]
+        with open(f"{ROOT}/scripts/golem_data.gd", "w") as fo:
+            fo.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_props.py\n")
+            fo.write("## póza: [šířka, výška, kotva x (střed nohou)] v logických px\n\nconst POSE := {\n")
+            for n_, v in gmeta.items():
+                fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
+            fo.write("}\n")
+        print(gmeta)
     idle, roar = parts(f"{ROOT}/art/source/grim_dragon.png", 2)
     k = DRAGON_H * RES / idle.shape[0]   # obě pózy ve stejném měřítku
     meta = {}
