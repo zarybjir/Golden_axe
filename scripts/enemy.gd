@@ -36,7 +36,7 @@ const KINDS := {
 	# Lich (palác): drží si odstup a střílí z hole zelené magické střely.
 	"lich": {"hp": 34, "range": 24.0, "speed": Vector2(55, 36), "reach": 20.0, "attack": "lich_cast", "cool": 70,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 350, "hit_w": 12.0},
-	"lich_king": {"hp": 240, "range": 24.0, "speed": Vector2(50, 32), "reach": 20.0, "attack": "lich_cast", "cool": 50,
+	"lich_king": {"hp": 240, "range": 34.0, "speed": Vector2(50, 32), "reach": 20.0, "attack": "lich_cast", "cool": 50,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 5000, "hit_w": 16.0,
 		"name": "THE LICH KING", "armor": true},
 	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
@@ -221,6 +221,8 @@ func tick() -> void:
 		S.ATTACK:
 			if kind == "golem" and move_name == "golem_throw":
 				_golem_throw_step()
+			if move_name == "lich_smash" and state_t == 2:
+				Sfx.play("roar", 1.5)
 			if move_name == "lich_cast" and state_t == 34:
 				_shoot_bolts()
 			if kind == "bat":
@@ -833,17 +835,22 @@ func _golem_throw_step() -> void:
 			_throw_boulder()
 
 
+const BOULDER_G := 600.0    # gravitace balvanu
+const BOULDER_Z0 := 120.0   # výška balvanu nad hlavou obra při hodu
+
+
 func _throw_boulder() -> void:
 	var tex: Texture2D = load("res://art/props/rock_%d.png" % (1 + randi() % 2))
-	var start := Vector2(pos.x + facing * 10.0, pos.y)
-	var tgt := throw_target + Vector2(randf_range(-10.0, 10.0), 0.0)
-	var t := clampf(absf(tgt.x - start.x) / 260.0, 0.5, 1.2)   # doba letu
+	var start := Vector2(pos.x + facing * 30.0, pos.y)
+	# míří tam, kde hrdina stojí teď (ne kde stál při vyrvání balvanu)
+	var tgt: Vector2 = stage.player.pos + Vector2(randf_range(-6.0, 6.0), 0.0)
+	var t := clampf(absf(tgt.x - start.x) / 300.0, 0.45, 0.9)   # doba letu – plochý oblouk, celý na obrazovce
 	var n := Node2D.new()
 	n.z_as_relative = false
 	n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	var b := [n, start, 160.0, 160.0 / t * 0.2, (tgt.x - start.x) / t, (tgt.y - start.y) / t, tex, 0.0]
-	# z = výška nad zemí; vz tak, aby balvan dopadl v čase t
-	b[3] = (0.5 * 900.0 * t * t - 160.0) / t
+	var b := [n, start, BOULDER_Z0, 0.0, (tgt.x - start.x) / t, (tgt.y - start.y) / t, tex, 0.0]
+	# z = výška nad zemí; vz tak, aby balvan dopadl přesně v čase t
+	b[3] = (0.5 * BOULDER_G * t * t - BOULDER_Z0) / t
 	n.draw.connect(_draw_boulder.bind(b))
 	stage.add_child(n)
 	boulders.append(b)
@@ -854,7 +861,7 @@ func _boulder_step() -> void:
 	for b in boulders.duplicate():
 		var n: Node2D = b[0]
 		var p: Vector2 = b[1]
-		b[3] = float(b[3]) - 900.0 * DT
+		b[3] = float(b[3]) - BOULDER_G * DT
 		b[2] = float(b[2]) + float(b[3]) * DT
 		p += Vector2(float(b[4]), float(b[5])) * DT
 		b[1] = p
@@ -1066,6 +1073,13 @@ func _lich_ai(p) -> void:
 	facing = 1 if dx > 0.0 else -1
 	if not p.alive():
 		return
+	# Král lichů zblízka mlátí holí
+	if kind == "lich_king" and absf(dx) < 50.0:
+		if cooldown <= 0 and absf(dy) < 10.0:
+			start_move("lich_smash")
+			return
+		_walk_to(Vector2(p.pos.x - facing * 34.0, p.pos.y))
+		return
 	# blízko u hrdiny ustupuje, jinak drží odstup ve stejné řadě
 	var want := 170.0 if kind == "lich" else 150.0
 	if absf(dx) < 70.0:
@@ -1079,8 +1093,7 @@ func _lich_ai(p) -> void:
 
 ## Z hole vyletí zelená střela (Král lichů pálí tři naráz v různých řadách).
 func _shoot_bolts() -> void:
-	var lanes: Array = [0.0] if kind == "lich" else [-16.0, 0.0, 16.0]
-	for ly in lanes:
+	for ly in [0.0]:
 		var n := Node2D.new()
 		n.z_as_relative = false
 		n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -1109,7 +1122,10 @@ func _bolt_step() -> void:
 		var hit := false
 		if pl.alive() and pl.can_be_hit() and pl.drown_t == 0 and absf(pl.pos.x - p.x) < 12.0 \
 				and absf(pl.pos.y - p.y) < 9.0 and pl.z < float(b[3]) - 10.0:
-			pl.take_hit(10, dir, false, 70.0)
+			if kind == "lich_king":
+				pl.take_hit(18, dir, true, 0.0)   # silnější střela Krále lichů srazí k zemi
+			else:
+				pl.take_hit(10, dir, false, 70.0)
 			hit = true
 		if hit or absf(p.x - stage.cam_x) > stage.HALF_W + 60.0:
 			if hit:
@@ -1128,8 +1144,8 @@ func _draw_bolt(b: Array) -> void:
 	var dir: int = b[2]
 	var t := float(b[4])
 	var tex: Texture2D = bolt_tex[int(t * 15.0) % bolt_tex.size()]
-	var w := tex.get_width() / 3.0
-	var h := tex.get_height() / 3.0
+	var w := tex.get_width() / 3.0 * lich_scale
+	var h := tex.get_height() / 3.0 * lich_scale
 	var c := Vector2(p.x, p.y - float(b[3]))
 	# stín a záře na zemi
 	n.draw_circle(Vector2(p.x, p.y), 6.0, Color(0.2, 0.6, 0.15, 0.18))
@@ -1163,6 +1179,13 @@ func _lich_frame() -> Array:
 			var n: int = anim_tex["cast"].size()
 			var imp: int = anim_set["cast"]["impact"]
 			var t := float(state_t)
+			if move_name == "lich_smash":
+				# úder holí: rychlý nápřah, švih dopředu a návrat
+				if t < 22.0:
+					return ["cast", int(t / 22.0 * float(imp))]
+				if t < 34.0:
+					return ["cast", imp]
+				return ["cast", mini(n - 1, imp + int((t - 34.0) / 10.0 * float(n - imp)))]
 			if t < 34.0:
 				return ["cast", int(t / 34.0 * float(imp))]
 			return ["cast", mini(n - 1, imp + int((t - 34.0) / 24.0 * float(n - imp)))]

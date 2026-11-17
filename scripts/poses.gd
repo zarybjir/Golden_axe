@@ -57,6 +57,8 @@ const MOVES := {
 		"keys": [[0, "idle"], [96, "idle"]]},
 	"chamois_charge": {"len": 86, "hit": [30, 72], "cancel": 99, "dmg": 12, "reach": 20, "push": 0, "knock": true, "next": "",
 		"dash": 340.0, "dash_from": 30, "dash_to": 72, "keys": [[0, "idle"], [86, "idle"]]},
+	"lich_smash": {"len": 44, "hit": [22, 26], "cancel": 99, "dmg": 16, "reach": 30, "push": 0, "knock": true, "next": "",
+		"keys": [[0, "idle"], [44, "idle"]]},
 	"lich_cast": {"len": 58, "hit": [999, 999], "cancel": 99, "dmg": 0, "reach": 0, "push": 0, "knock": false, "next": "",
 		"keys": [[0, "idle"], [58, "idle"]]},
 	"native_jab": {"len": 26, "hit": [9, 12], "cancel": 99, "dmg": 6, "reach": 30, "push": 40, "knock": false, "next": "",
