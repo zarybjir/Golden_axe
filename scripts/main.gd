@@ -67,6 +67,8 @@ func _ready() -> void:
 	show_title()
 	if shots_dir != "":
 		_take_shots()
+	if OS.get_cmdline_user_args().has("--zombietest"):
+		_zombie_test()
 
 
 func _process(delta: float) -> void:
@@ -719,6 +721,47 @@ func _take_shots() -> void:
 	await _wait(0.4)
 	_save_shot("9_pauza")
 	print("SHOTS OK")
+	get_tree().quit(0)
+
+
+## Test: zombie přijde o ruku a sám si ji dojde zvednout (bez zásahu testu).
+func _zombie_test() -> void:
+	await _wait(0.5)
+	lives = -1
+	start_stage(1)
+	stage.debug_jump_to_wave(0)
+	await _wait(3.0)
+	for f in stage.fighters:
+		if f.get("kind") == "zombie":
+			stage.player.pos = Vector2(stage.cam_x - 150.0, 240.0)
+			stage.player.controls = false
+			f.pos = Vector2(stage.cam_x + 40.0, 240.0)
+			for k in 3:
+				f.take_hit(6, 1, false, 0.0)
+				await _wait(0.3)
+			for i in 40:
+				await _wait(0.25)
+				print("t=%.2f phase=%d pickup=%d state=%d pos=%s arm=%s" % [i * 0.25, f.z_phase, f.pickup_t, f.state, f.pos, f.arm_pos])
+				if f.z_phase == 2:
+					break
+			await _wait(3.0)
+			print("ZOMBIETEST phase=", f.z_phase)
+			break
+	# obr: po sražující ráně nepadá, odhodí hrdinu a vyrazí
+	start_stage(0)
+	stage.debug_jump_to_wave(3)
+	await _wait(3.0)
+	for f in stage.fighters:
+		if f.get("kind") == "ogre":
+			stage.player.pos = Vector2(stage.cam_x, 240.0)
+			f.pos = stage.player.pos + Vector2(30.0, 0.0)
+			f.set("incoming_move", "atk3")
+			f.take_hit(14, 1, true, 0.0)
+			for i in 12:
+				await _wait(0.15)
+				print("ogre state=%d move=%s hp=%d | hero state=%d x=%.0f" % [f.state, f.move_name, f.hp, stage.player.state, stage.player.pos.x - f.pos.x])
+			print("OGRETEST done")
+			break
 	get_tree().quit(0)
 
 

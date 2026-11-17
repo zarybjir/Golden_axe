@@ -210,8 +210,33 @@ func _rise_step() -> void:
 			stage.leave_mound(pos + Vector2(anim_cx, 0.0), rise_dirt)
 
 
+var charge_pending := 0   # obr: za kolik snímků vyrazí do útoku po odhození hrdiny
+
+
+## Obr odstrčí hrdinu (odletí kus dál) a po krátké chvíli na něj vyrazí –
+## hrdina má čas se zvednout z dosahu nebo uskočit.
+func _ogre_retaliate() -> void:
+	var p = stage.player
+	facing = 1 if p.pos.x > pos.x else -1
+	hurt_len = 10
+	set_state(S.HURT)
+	if p.alive() and absf(p.pos.x - pos.x) < 90.0 and absf(p.pos.y - pos.y) < 20.0:
+		p.take_hit(4, facing, false, 190.0)
+		stage.shake(3.0, 0.15)
+		Sfx.play("heavy", 0.6)
+	charge_pending = 34
+
+
 func tick() -> void:
 	physics_step()
+	if charge_pending > 0 and state != S.DOWN and state != S.DEAD:
+		charge_pending -= 1
+		if charge_pending == 0 and state != S.ATTACK:
+			var pl = stage.player
+			facing = 1 if pl.pos.x > pos.x else -1
+			pos.y = move_toward(pos.y, pl.pos.y, 6.0)
+			start_move("ogre_charge")
+			Sfx.play("roar")
 	if arm_node != null:
 		_arm_step()
 	if not boulders.is_empty():
@@ -381,6 +406,15 @@ func _wants_block(knock: bool) -> bool:
 
 
 func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
+	if kind == "ogre" and knock and hp - dmg > 0 and incoming_move != "magic" \
+			and state != S.DOWN and state != S.DEAD:
+		# obr po úderu ze skoku nebo po třetí ráně komba nepadá: odhodí hrdinu a vyrazí na něj
+		hp -= dmg
+		flash = 6
+		Sfx.play("hit", 0.55)
+		stage.fx.burst(Vector2(pos.x - dir * 14.0, pos.y - 120.0), Color("fff4c0"), 10, 120.0, 0.25, 0.0, 2.0)
+		_ogre_retaliate()
+		return
 	if kind == "zombie" and state != S.DOWN and state != S.DEAD:
 		_zombie_hit(dir)
 		return
@@ -646,7 +680,7 @@ func _sever_arm(dir: int) -> void:
 	arm_node = Node2D.new()
 	arm_node.z_as_relative = false
 	arm_node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	arm_node.draw.connect(_draw_arm)
+	arm_node.draw.connect(_draw_arm.bind(arm_node))
 	stage.add_child(arm_node)
 	stage.fx.burst(Vector2(pos.x + facing * 6.0, pos.y - 66.0), Color("5a1a14"), 22, 160.0, 0.6, 400.0, 3.0)
 	Sfx.play("heavy", 0.9)
@@ -664,13 +698,15 @@ func _arm_step() -> void:
 	arm_node.queue_redraw()
 
 
-func _draw_arm() -> void:
+func _draw_arm(n: Node2D) -> void:
+	if n == null or not is_instance_valid(n):
+		return
 	var tex: Texture2D = z_tex["arm"]
 	var m: Array = ZombieData.POSE["arm"]
 	var w := float(m[0])
 	var h := float(m[1])
-	arm_node.draw_set_transform(Vector2(arm_pos.x, arm_pos.y - arm_z - h * 0.4), 0.0, Vector2(float(arm_dir), 1.0))
-	arm_node.draw_texture_rect(tex, Rect2(-w * 0.5, -h * 0.5, w, h), false, Color(0.9, 0.88, 0.86))
+	n.draw_set_transform(Vector2(arm_pos.x, arm_pos.y - arm_z - h * 0.4), 0.0, Vector2(float(arm_dir), 1.0))
+	n.draw_texture_rect(tex, Rect2(-w * 0.5, -h * 0.5, w, h), false, Color(0.9, 0.88, 0.86))
 
 
 ## Bez ruky: dobelhá se k ní, shýbne se a zvedne ji druhou rukou.
