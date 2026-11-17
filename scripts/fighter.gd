@@ -96,6 +96,7 @@ func setup_rig() -> void:
 
 
 var sink := 0.0
+var anim_cx := 0.0   # střed těla aktuálního snímku (x, místní souřadnice)
 
 
 func start_drown() -> void:
@@ -421,6 +422,7 @@ func _draw_anim(mod: Color) -> void:
 		i = clampi(i, 0, arr.size() - 1)
 	var off: Vector2 = a["offsets"][i]
 	var tex: Texture2D = arr[i]
+	anim_cx = (off.x + tex.get_width() * 0.5) * anim_k * facing
 	# ležící postava: široký stín pod celým tělem a přitisknutí k zemi (jinak "visí")
 	var drop := 0.0
 	if (state == S.DOWN or state == S.DEAD or state == S.GETUP) and drown_t == 0 and sink == 0.0:

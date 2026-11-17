@@ -640,10 +640,10 @@ func _draw_mounds() -> void:
 			continue
 		var tex: Texture2D = m[1]
 		var p: Vector2 = m[0]
-		var w := tex.get_width() / 3.0
-		var h := tex.get_height() / 3.0 * 0.8
+		var w := tex.get_width() / 3.0 * 1.2
+		var h := tex.get_height() / 3.0 * 1.0
 		var a := clampf((14.0 - age) / 3.0, 0.0, 1.0)
-		draw_texture_rect(tex, Rect2(p.x - w * 0.5, p.y - h + 4.0, w, h), false, Color(0.8, 0.78, 0.75, a))
+		draw_texture_rect(tex, Rect2(p.x - w * 0.5, p.y - h + 5.0, w, h), false, Color(1.1, 1.05, 0.98, a))
 
 
 ## Rozkládající se ostatky ležící na cestě – ztlumené, aby moc nevystupovaly.
