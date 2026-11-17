@@ -57,6 +57,7 @@ var arm_pos := Vector2.ZERO
 var arm_z := 0.0
 var arm_vz := 0.0
 var arm_vx := 0.0
+var arm_dir := 1          # směr utržené ruky (pevný od useknutí)
 
 
 func _ready() -> void:
@@ -505,6 +506,7 @@ func _sever_arm(dir: int) -> void:
 	arm_z = 62.0
 	arm_vz = 160.0
 	arm_vx = dir * 70.0
+	arm_dir = facing
 	arm_node = Node2D.new()
 	arm_node.z_as_relative = false
 	arm_node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -531,8 +533,7 @@ func _draw_arm() -> void:
 	var m: Array = ZombieData.POSE["arm"]
 	var w := float(m[0])
 	var h := float(m[1])
-	var spin := arm_z * 0.08 if arm_z > 0.0 else 0.0
-	arm_node.draw_set_transform(Vector2(arm_pos.x, arm_pos.y - arm_z - h * 0.4), spin, Vector2(float(facing), 1.0))
+	arm_node.draw_set_transform(Vector2(arm_pos.x, arm_pos.y - arm_z - h * 0.4), 0.0, Vector2(float(arm_dir), 1.0))
 	arm_node.draw_texture_rect(tex, Rect2(-w * 0.5, -h * 0.5, w, h), false, Color(0.9, 0.88, 0.86))
 
 
