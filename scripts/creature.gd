@@ -22,6 +22,24 @@ var neutral_t := 0
 var dead_t := 0
 var entered := false
 var cfg := {"score": 5000}
+const DragonData := preload("res://scripts/dragon_data.gd")
+var paint := {}          # namalovaný drak: póza -> textura
+
+
+func _roaring() -> bool:
+	# tlama otevřená: chrlení ohně a kousnutí po nápřahu, řev při dupnutí
+	return jaw > 0.5 or (attack == "stomp" and atk_t < 48)
+
+
+## Kde má drak tlamu (ve světě) – odsud chrlí oheň.
+func mouth_world() -> Vector2:
+	if paint.is_empty():
+		return _local_to_world(head_off + Vector2(18, 3))
+	var m: Array = DragonData.POSE["roar" if _roaring() else "idle"]
+	var w := float(DragonData.POSE["idle"][0])
+	var pivot := Vector2(-w * 0.3, 0.0)
+	var loc := pivot + (Vector2(float(m[3]), float(m[4])) - pivot).rotated(rear * 0.6 + tail_swing * 0.05)
+	return position + Vector2(loc.x * facing, loc.y)
 
 
 func _ready() -> void:
@@ -45,6 +63,11 @@ func _ready() -> void:
 		hit_depth = 18.0
 		display_name = "DRAK ŽHAVOŠ"
 		armor = true
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		for n in ["idle", "roar"]:
+			var path := "res://art/enemy_sprite/drak_%s.png" % n
+			if ResourceLoader.exists(path):
+				paint[n] = load(path)
 	hp = max_hp
 
 
@@ -157,7 +180,7 @@ func _run_attack() -> void:
 				if atk_t == 40:
 					Sfx.play("fire")
 				if atk_t % 2 == 0:
-					var mouth := _local_to_world(head_off + Vector2(18, 3))
+					var mouth := mouth_world()
 					stage.fx.spray(mouth, Vector2(facing, 0.35), 0.35, 260.0, 3,
 						[Color("f0d050"), Color("f08a30"), Color("d8402e")])
 				if atk_t % 10 == 0:
@@ -295,6 +318,9 @@ func _root_xf() -> Transform2D:
 func _draw() -> void:
 	if state == S.DEAD and (state_t / 4) % 2 == 0:
 		return
+	if not paint.is_empty():
+		_draw_painted()
+		return
 	_ellipse(Vector2(0, z), 30.0 * body_scale, 5.0 * body_scale, Color(0, 0, 0, 0.3))
 	var mod := Color.WHITE
 	if flash > 0:
@@ -355,6 +381,39 @@ func _draw() -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	if telegraph:
 		var y := -90.0 * body_scale * 0.6
+		draw_rect(Rect2(-3, y, 6, 14), Color("f0d050"))
+		draw_rect(Rect2(-3, y + 17, 6, 5), Color("f0d050"))
+
+
+## Namalovaný drak: dvě pózy (klid / řev), pohyb dělá dýchání, kolébání při chůzi
+## a naklánění celého těla kolem zadních nohou (vzpínání, pád).
+func _draw_painted() -> void:
+	var nm := "roar" if _roaring() else "idle"
+	var tex: Texture2D = paint[nm]
+	var m: Array = DragonData.POSE[nm]
+	var w := float(m[0])
+	var h := float(m[1])
+	var ax := float(m[2])
+	_ellipse(Vector2(0, z), w * 0.42, 9.0, Color(0, 0, 0, 0.35))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.55, 0.5)
+	elif telegraph and (atk_t / 3) % 2 == 0:
+		mod = Color(1.0, 0.85, 0.45)
+	if state == S.DEAD or state == S.DOWN:
+		mod = mod * Color(0.7, 0.66, 0.64)
+	var breathe := 1.0 + sin(anim * 2.2) * 0.012
+	var bob := absf(sin(anim * 9.0)) * 2.0 if moving else 0.0
+	# otáčení kolem zadních nohou (rear < 0 = přední část se zvedá)
+	var pivot := Vector2(-float(DragonData.POSE["idle"][0]) * 0.3, 0.0)
+	var ang := rear * 0.6 + tail_swing * 0.05
+	var xf := Transform2D(0.0, Vector2(facing, 1.0), 0.0, Vector2(0.0, -bob)) \
+		* Transform2D(ang, pivot) * Transform2D(0.0, -pivot)
+	draw_set_transform_matrix(xf * Transform2D(0.0, Vector2(1.0, breathe), 0.0, Vector2.ZERO))
+	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+	if telegraph:
+		var y := -h - 24.0
 		draw_rect(Rect2(-3, y, 6, 14), Color("f0d050"))
 		draw_rect(Rect2(-3, y + 17, 6, 5), Color("f0d050"))
 

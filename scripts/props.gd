@@ -31,7 +31,7 @@ func take_hit(_dmg: int, _dir: int, _knock: bool, _push: float) -> void:
 		return
 	broken = true
 	stage.spawn_pickup(content, pos + Vector2(0, 2))
-	stage.fx.burst(Vector2(pos.x, pos.y - 10), Color("8a5428"), 14, 120.0, 0.5, 400.0, 3.0)
+	stage.fx.burst(Vector2(pos.x, pos.y - 10), Color("3e3022"), 14, 120.0, 0.5, 400.0, 3.0)
 	Sfx.play("break")
 	queue_free()
 
@@ -43,7 +43,25 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+var paint: Texture2D = null   # namalovaný sud podle prostředí
+
+
 func _draw() -> void:
+	if kind == "barrel" and paint == null and stage != null:
+		var path := "res://art/props/barrel_%s.png" % str(stage.get("biome"))
+		if ResourceLoader.exists(path):
+			paint = load(path)
+			texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if paint != null:
+		var w := paint.get_width() / 3.0
+		var h := paint.get_height() / 3.0
+		var sh := PackedVector2Array()
+		for i in 16:
+			var an := TAU * i / 16.0
+			sh.append(Vector2(cos(an) * w * 0.6, sin(an) * 4.0))
+		draw_colored_polygon(sh, Color(0, 0, 0, 0.35))
+		draw_texture_rect(paint, Rect2(-w * 0.5, -h + 2.0, w, h), false, Color(0.9, 0.88, 0.86))
+		return
 	var tex: Texture2D
 	var lift := 0.0
 	match kind:
