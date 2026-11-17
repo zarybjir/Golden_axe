@@ -107,6 +107,9 @@ func _ready() -> void:
 			c_tex[n] = load("res://art/enemy_sprite/kamzik_%s.png" % n)
 		sprite_tex = c_tex["idle"]
 		sprite_h = 76.0
+		if ResourceLoader.exists("res://scripts/chamois_anims.gd"):
+			var ca = load("res://scripts/chamois_anims.gd")
+			setup_anims(ca.ANIMS, ca.K)
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if kind == "golem":
 		for n in GolemData.POSE.keys():
@@ -757,7 +760,7 @@ func _draw_zombie_anim(nm: String, i: int, shadow: float = 20.0) -> void:
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
 	var rot := 0.0
-	if state == S.HURT and kind != "golem":
+	if state == S.HURT and kind == "zombie":
 		rot = -0.12
 	var hip := Vector2(0.0, -40.0)
 	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) \
@@ -955,8 +958,32 @@ func _chamois_pose() -> String:
 	return "idle"
 
 
+## Snímek animace kamzíka: [animace, index] nebo [] = statická póza.
+func _chamois_frame() -> Array:
+	if anim_tex.is_empty() or state == S.DOWN or state == S.DEAD or state == S.GETUP:
+		return []
+	match state:
+		S.WALK:
+			# první snímek je stoj, cval začíná od druhého
+			return ["walk", 1 + posmod(int(anim_clock * 14.0), anim_tex["walk"].size() - 1)]
+		S.ATTACK:
+			var t := state_t
+			if t < 30:
+				return ["rear", t * anim_tex["rear"].size() / 30]
+			if t < 74:
+				var n: int = anim_tex["ram"].size()
+				var i := (t - 30) / 2
+				return ["ram", i if i < n else n - 6 + posmod(i - n, 6)]
+			return ["back", (t - 74) * anim_tex["back"].size() / 12]
+	return ["walk", 0]
+
+
 func _draw_chamois() -> void:
 	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var cf := _chamois_frame()
+	if not cf.is_empty():
+		_draw_zombie_anim(cf[0], int(cf[1]), 26.0)
 		return
 	var nm := _chamois_pose()
 	var tex: Texture2D = c_tex[nm]

@@ -100,6 +100,8 @@ func _preload_enemies() -> void:
 		if k == "chamois":
 			for n in ["idle", "run1", "run2", "rear", "charge", "down"]:
 				_warm.append(load("res://art/enemy_sprite/kamzik_%s.png" % n))
+			if ResourceLoader.exists("res://scripts/chamois_anims.gd"):
+				sets = load("res://scripts/chamois_anims.gd").ANIMS
 		if k == "golem":
 			for n in ["idle", "walk", "wind", "punch", "tear", "hold"]:
 				_warm.append(load("res://art/enemy_sprite/golem_%s.png" % n))
