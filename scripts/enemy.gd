@@ -835,8 +835,8 @@ func _draw_boulder(b: Array) -> void:
 	var n: Node2D = b[0]
 	var tex: Texture2D = b[6]
 	var p: Vector2 = b[1]
-	var w := tex.get_width() / 3.0 * 1.4
-	var h := tex.get_height() / 3.0 * 1.4
+	var w := tex.get_width() / 3.0 * 1.05
+	var h := tex.get_height() / 3.0 * 1.05
 	var pts := PackedVector2Array()
 	for i in 12:
 		var an := TAU * i / 12.0
