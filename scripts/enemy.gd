@@ -1056,7 +1056,8 @@ func _draw_chamois() -> void:
 # ---------------------------------------------------------------- palác: lich
 
 const BOLT_SPEED := 190.0
-const BOLT_Z := 46.0       # výška střely nad zemí (hrot hole)
+const BOLT_Z := 42.0       # výška letu střely nad zemí (trup hrdiny)
+const STAFF_TIP := Vector2(58.0, 95.0)   # špička hole při výstřelu (podle animace)
 
 
 func _lich_ai(p) -> void:
@@ -1087,7 +1088,7 @@ func _shoot_bolts() -> void:
 		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		n.material = mat
 		var gy := clampf(pos.y + ly, Y_MIN, Y_MAX)
-		var b := [n, Vector2(pos.x + facing * 58.0 * lich_scale, gy), facing, BOLT_Z * lich_scale, 0.0]
+		var b := [n, Vector2(pos.x + facing * STAFF_TIP.x * lich_scale, gy), facing, STAFF_TIP.y * lich_scale, 0.0]
 		n.draw.connect(_draw_bolt.bind(b))
 		stage.add_child(n)
 		bolts.append(b)
@@ -1101,6 +1102,8 @@ func _bolt_step() -> void:
 		var dir: int = b[2]
 		p.x += dir * BOLT_SPEED * DT
 		b[1] = p
+		# ze špičky hole klesá šikmo dolů do výšky trupu
+		b[3] = move_toward(float(b[3]), BOLT_Z, 200.0 * DT)
 		b[4] = float(b[4]) + DT
 		var pl = stage.player
 		var hit := false
