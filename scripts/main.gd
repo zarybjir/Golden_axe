@@ -8,6 +8,20 @@ const Fighter := preload("res://scripts/fighter.gd")
 const TouchScript := preload("res://scripts/touch.gd")
 const TitleScript := preload("res://scripts/title.gd")
 const GateScript := preload("res://scripts/gate_scene.gd")
+const StoryScript := preload("res://scripts/story.gd")
+const Snacks := preload("res://scripts/snacks.gd")
+
+const INTRO := [
+	["Mirek the blacksmith had worked hard all morning.\nAt last it was time for lunch.", []],
+	["But the Lich King crept into the smithy\nand stole his whole lunchbox!", []],
+	["On the way back to his Dark Palace he gave a piece\nto each of his wicked friends...", ["apple", "carrot", "banana", "beer"]],
+	["...and kept the sandwich for himself.", ["sandwich"]],
+	["Mirek grabbed his hammer.\nNobody touches his lunch.", []],
+]
+const OUTRO := [
+	["The lunchbox is full again.", ["apple", "carrot", "banana", "beer", "sandwich"]],
+	["Mirek sat down on the Lich King's throne\nand finally ate his lunch.", []],
+]
 
 enum State { TITLE, PLAYING, PAUSED, RESULTS }
 
@@ -27,6 +41,8 @@ var run_active := false   # hraje se celá hra od první úrovně (do žebříč
 var run_score := 0
 var run_time := 0.0
 var time_attack := false  # časovka: jedna úroveň proti stopkám
+var lunchbox: Array = []  # kousky svačiny, které si kovář už vzal zpět
+var story_layer: CanvasLayer = null
 var rebinding := ""        # akce, pro kterou se právě čeká na klávesu/tlačítko
 var rebind_t := 0.0
 
@@ -77,6 +93,8 @@ func _ready() -> void:
 		_heavy_test()
 	if OS.get_cmdline_user_args().has("--uitest"):
 		_ui_test()
+	if OS.get_cmdline_user_args().has("--storytest"):
+		_story_test()
 
 
 func _process(delta: float) -> void:
@@ -261,8 +279,33 @@ func start_game() -> void:
 	run_active = true
 	run_score = 0
 	run_time = 0.0
+	lunchbox = []
 	lives = Settings.lives()
-	start_stage(0)
+	if shots_dir != "" or smoke:
+		start_stage(0)
+		return
+	_show_story(INTRO, start_stage.bind(0))
+
+
+## Vyprávění (úvod / závěr); po dočtení se zavolá next.
+func _show_story(pages: Array, next: Callable) -> void:
+	_close_menu()
+	_close_story()
+	story_layer = CanvasLayer.new()
+	story_layer.layer = 9
+	var s := StoryScript.new()
+	s.pages = pages
+	s.finished.connect(func() -> void:
+		_close_story()
+		next.call())
+	story_layer.add_child(s)
+	add_child(story_layer)
+
+
+func _close_story() -> void:
+	if story_layer != null and is_instance_valid(story_layer):
+		story_layer.queue_free()
+	story_layer = null
 
 
 func restart_stage() -> void:
@@ -284,6 +327,7 @@ func start_stage(index: int) -> void:
 	stage = StageScript.new()
 	stage.stage_index = index
 	stage.lives = lives
+	stage.lunchbox = lunchbox
 	stage.time_attack = time_attack
 	stage.game_over.connect(_on_game_over)
 	stage.completed.connect(_on_completed)
@@ -367,8 +411,8 @@ func _show_results(stats: Dictionary) -> void:
 	if stage_index + 1 < StageScript.STAGES.size():
 		items.append(["Next stage", next_stage])
 	else:
-		title = "The Dark Palace has fallen!"
-		text += "\n\nAll stages complete!"
+		title = "Lunch is served!"
+		text += "\n\nThe whole lunchbox is back!"
 		if run_active:
 			text += "\nTotal score: %d   Total time: %s" % [run_score, Settings.time_text(run_time)]
 			news += Settings.record_run(run_score, run_time)
@@ -377,6 +421,10 @@ func _show_results(stats: Dictionary) -> void:
 		text += "\n\n" + news.strip_edges()
 	items.append(["Play stage again", restart_stage])
 	items.append(["Main menu", show_title])
+	if stage_index + 1 >= StageScript.STAGES.size() and shots_dir == "" and not smoke:
+		# závěr příběhu, pak výsledky
+		_show_story(OUTRO, _show_menu.bind(title, text, items))
+		return
 	_show_menu(title, text, items)
 
 
@@ -403,6 +451,7 @@ func quit_game() -> void:
 
 func _clear_stage() -> void:
 	_close_gate()
+	_close_story()
 	hud.stage = null
 	if stage != null and is_instance_valid(stage):
 		stage.queue_free()
@@ -890,6 +939,30 @@ func _ui_test() -> void:
 	show_records()
 	await _wait(0.2)
 	print("UITEST done")
+	get_tree().quit(0)
+
+
+## Test: úvodní příběh, svačina od poraženého bosse, závěr.
+func _story_test() -> void:
+	await _wait(0.3)
+	start_game()
+	for i in 80:
+		if story_layer == null:
+			break
+		await _wait(0.4)
+		Input.action_press("attack")
+		await _wait(0.1)
+		Input.action_release("attack")
+	await _wait(0.5)
+	print("STAGE after intro: ", stage != null)
+	stage.debug_jump_to_wave(3)
+	await _wait(2.5)
+	if stage.boss != null:
+		stage.boss.set("incoming_move", "magic")
+		stage.boss.take_hit(9999, 1, true, 0.0)
+	await _wait(2.5)
+	print("LUNCHBOX ", lunchbox)
+	print("STORYTEST done")
 	get_tree().quit(0)
 
 

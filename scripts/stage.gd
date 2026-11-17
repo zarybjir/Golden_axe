@@ -5,8 +5,11 @@ signal completed(stats: Dictionary)
 signal game_over
 var lives := -1   # zbývající životy (-1 = neomezeně), nastaví main.gd
 var time_attack := false
+var lunchbox: Array = []     # kousky svačiny vzaté zpět (sdílené s main.gd)
+var snack_fly := {}          # kousek právě letí od poraženého bosse do boxu
 
 const PlayerScript := preload("res://scripts/player.gd")
+const Snacks := preload("res://scripts/snacks.gd")
 const EnemyScript := preload("res://scripts/enemy.gd")
 const PropScript := preload("res://scripts/props.gd")
 const CreatureScript := preload("res://scripts/creature.gd")
@@ -369,6 +372,16 @@ func debug_jump_to_wave(index: int) -> void:
 	player.pos = Vector2(cam_x + 10.0, 236.0)
 
 
+## Poražený boss vrátí kousek svačiny – vyletí k boxu nahoře.
+func _snack_recovered(at: Vector2) -> void:
+	var item: String = Snacks.for_stage(stage_index)
+	if not lunchbox.has(item):
+		lunchbox.append(item)
+	snack_fly = {"item": item, "from": Vector2(at.x - cam_x + HALF_W, at.y - 60.0), "t": 0.0}
+	popup(Snacks.NAMES[item] + " RECOVERED!", at + Vector2(-50, -90), Color("f0d050"))
+	Sfx.play("bonus")
+
+
 ## Oživení mrtvého (nekromant): vyleze ze země na daném místě.
 func raise_dead(kind: String, at: Vector2) -> Node2D:
 	var en := _make_enemy(kind, at, 1 if at.x < player.pos.x else -1)
@@ -562,6 +575,7 @@ func _cleanup() -> void:
 					fallen.pop_front()
 			if f == boss:
 				boss = null
+				_snack_recovered(f.pos)
 			fighters.erase(f)
 			tokens.erase(f)
 			f.queue_free()

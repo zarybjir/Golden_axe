@@ -1,4 +1,6 @@
 extends Control
+
+const Snacks := preload("res://scripts/snacks.gd")
 ## Ukazatele: zdraví, runy, životy, skóre a zdraví bosse.
 
 var stage: Node2D = null
@@ -64,10 +66,41 @@ func _draw() -> void:
 			draw_texture(Art.t("rune"), r.position + Vector2(0.5, 1))
 		else:
 			draw_rect(r.grow(-1), Color(0.2, 0.25, 0.35, 0.6))
+	# Svačinový box: kousky vzaté zpět bossům
+	_draw_lunchbox(st)
 	# Boss
 	if st.boss != null and is_instance_valid(st.boss):
 		var b = st.boss
 		_bar(Rect2(120, 283, 240, 8), float(b.hp) / float(b.max_hp), Color("8a5aa8"), Color("b080d0"))
+
+
+func _slot_pos(i: int) -> Vector2:
+	return Vector2(206.0 + i * 17.0, 14.0)
+
+
+func _draw_lunchbox(st) -> void:
+	var box := Rect2(196.0, 4.0, 88.0, 20.0)
+	draw_rect(box.grow(1), Color("1a120e"))
+	draw_rect(box, Color(0.18, 0.12, 0.08, 0.85))
+	draw_rect(Rect2(box.position.x + 36.0, box.position.y - 3.0, 16.0, 3.0), Color(0.3, 0.2, 0.12))  # ucho boxu
+	var flying: String = st.snack_fly.get("item", "")
+	for i in Snacks.ITEMS.size():
+		var item: String = Snacks.ITEMS[i]
+		var c := _slot_pos(i)
+		if st.lunchbox.has(item) and item != flying:
+			Snacks.draw_icon(self, item, c, 14.0)
+		else:
+			draw_circle(c, 5.0, Color(0, 0, 0, 0.35))
+	# kousek letící od bosse do boxu
+	if flying != "":
+		st.snack_fly["t"] = float(st.snack_fly["t"]) + get_process_delta_time()
+		var k := clampf(float(st.snack_fly["t"]) / 1.2, 0.0, 1.0)
+		var to := _slot_pos(Snacks.ITEMS.find(flying))
+		var from: Vector2 = st.snack_fly["from"]
+		var p := from.lerp(to, k * k) + Vector2(0, -sin(k * PI) * 40.0)
+		Snacks.draw_icon(self, flying, p, lerpf(30.0, 14.0, k))
+		if k >= 1.0:
+			st.snack_fly = {}
 
 
 func _bar(r: Rect2, frac: float, col: Color, hi: Color) -> void:
