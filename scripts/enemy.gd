@@ -33,6 +33,12 @@ const KINDS := {
 	# Démonický kamzík (hory): drží si odstup, vzepne se a rozběhne se, narazí rohama.
 	"chamois": {"hp": 40, "range": 22.0, "speed": Vector2(95, 58), "reach": 20.0, "attack": "chamois_charge", "cool": 80,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 300, "hit_w": 22.0, "depth": 4.0},
+	# Lich (palác): drží si odstup a střílí z hole zelené magické střely.
+	"lich": {"hp": 34, "range": 24.0, "speed": Vector2(55, 36), "reach": 20.0, "attack": "lich_cast", "cool": 70,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 350, "hit_w": 12.0},
+	"lich_king": {"hp": 240, "range": 24.0, "speed": Vector2(50, 32), "reach": 20.0, "attack": "lich_cast", "cool": 50,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 5000, "hit_w": 16.0,
+		"name": "THE LICH KING", "armor": true},
 	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
 	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
@@ -53,6 +59,10 @@ const HOVER_Z := 64.0
 const ZombieData := preload("res://scripts/zombie_data.gd")
 const GolemData := preload("res://scripts/golem_data.gd")
 const ChamoisData := preload("res://scripts/chamois_data.gd")
+var l_tex := {}
+var bolt_tex: Array = []
+var bolts: Array = []      # [Node2D, pozice (x, zem y), směr, výška, čas]
+var lich_scale := 1.0
 var c_tex := {}
 var g_tex := {}
 var throw_cool := 120
@@ -103,6 +113,16 @@ func _ready() -> void:
 			var za = load("res://scripts/zombie_anims.gd")
 			setup_anims(za.ANIMS, za.K)
 		sprite_h = float(ZombieData.POSE["walk"][1])
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if kind == "lich" or kind == "lich_king":
+		var LD = load("res://scripts/lich_data.gd")
+		for n in LD.POSE.keys():
+			l_tex[n] = load("res://art/enemy_sprite/lich_%s.png" % n)
+		for i in 4:
+			bolt_tex.append(load("res://art/fx/bolt_%d.png" % i))
+		lich_scale = 1.35 if kind == "lich_king" else 1.0
+		sprite_tex = l_tex["idle"]
+		sprite_h = 104.0 * lich_scale
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if kind == "chamois":
 		for n in ChamoisData.POSE.keys():
@@ -178,6 +198,8 @@ func tick() -> void:
 		_arm_step()
 	if not boulders.is_empty():
 		_boulder_step()
+	if not bolts.is_empty():
+		_bolt_step()
 	if rise_t > 0:
 		_rise_step()
 		position = Vector2(roundf(pos.x), roundf(pos.y - z + sink))
@@ -196,6 +218,8 @@ func tick() -> void:
 		S.ATTACK:
 			if kind == "golem" and move_name == "golem_throw":
 				_golem_throw_step()
+			if move_name == "lich_cast" and state_t == 34:
+				_shoot_bolts()
 			if kind == "bat":
 				# střemhlavý útok: sletí dolů k hrdinovi a zase vzlétne
 				var k := float(state_t) / float(move["len"])
@@ -221,6 +245,9 @@ func _ai() -> void:
 		return
 	if kind == "chamois":
 		_chamois_ai(p)
+		return
+	if kind == "lich" or kind == "lich_king":
+		_lich_ai(p)
 		return
 	if kind == "golem":
 		throw_cool -= 1
@@ -396,6 +423,9 @@ func _anim_pick() -> Array:
 ## Lidojed a netopýr mají zatím jen jeden obrázek – pohyb se dopočítává
 ## (kymácení, výpad, záklon, pád, mávání křídly).
 func _draw() -> void:
+	if kind == "lich" or kind == "lich_king":
+		_draw_lich()
+		return
 	if kind == "chamois":
 		_draw_chamois()
 		return
@@ -651,6 +681,10 @@ func _exit_tree() -> void:
 		if is_instance_valid(b[0]):
 			b[0].queue_free()
 	boulders.clear()
+	for b in bolts:
+		if is_instance_valid(b[0]):
+			b[0].queue_free()
+	bolts.clear()
 
 
 func _zombie_pose() -> String:
@@ -1013,4 +1047,126 @@ func _draw_chamois() -> void:
 		rot = -0.15
 	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) * Transform2D(rot, off))
 	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+# ---------------------------------------------------------------- palác: lich
+
+const BOLT_SPEED := 190.0
+const BOLT_Z := 46.0       # výška střely nad zemí (hrot hole)
+
+
+func _lich_ai(p) -> void:
+	var dx: float = p.pos.x - pos.x
+	var dy: float = p.pos.y - pos.y
+	facing = 1 if dx > 0.0 else -1
+	if not p.alive():
+		return
+	# blízko u hrdiny ustupuje, jinak drží odstup ve stejné řadě
+	var want := 170.0 if kind == "lich" else 150.0
+	if absf(dx) < 70.0:
+		_walk_to(Vector2(p.pos.x - facing * want, pos.y + signf(pos.y - p.pos.y + 0.01) * 10.0))
+		return
+	if cooldown <= 0 and absf(dy) < 10.0 and absf(dx) < 300.0:
+		start_move("lich_cast")
+		return
+	_walk_to(Vector2(p.pos.x - facing * want, p.pos.y))
+
+
+## Z hole vyletí zelená střela (Král lichů pálí tři naráz v různých řadách).
+func _shoot_bolts() -> void:
+	var lanes: Array = [0.0] if kind == "lich" else [-16.0, 0.0, 16.0]
+	for ly in lanes:
+		var n := Node2D.new()
+		n.z_as_relative = false
+		n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		var mat := CanvasItemMaterial.new()
+		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		n.material = mat
+		var gy := clampf(pos.y + ly, Y_MIN, Y_MAX)
+		var b := [n, Vector2(pos.x + facing * 58.0 * lich_scale, gy), facing, BOLT_Z * lich_scale, 0.0]
+		n.draw.connect(_draw_bolt.bind(b))
+		stage.add_child(n)
+		bolts.append(b)
+	Sfx.play("magic" if kind == "lich_king" else "dodge", 1.4)
+
+
+func _bolt_step() -> void:
+	for b in bolts.duplicate():
+		var n: Node2D = b[0]
+		var p: Vector2 = b[1]
+		var dir: int = b[2]
+		p.x += dir * BOLT_SPEED * DT
+		b[1] = p
+		b[4] = float(b[4]) + DT
+		var pl = stage.player
+		var hit := false
+		if pl.alive() and pl.can_be_hit() and pl.drown_t == 0 and absf(pl.pos.x - p.x) < 12.0 \
+				and absf(pl.pos.y - p.y) < 9.0 and pl.z < float(b[3]) - 10.0:
+			pl.take_hit(10, dir, false, 70.0)
+			hit = true
+		if hit or absf(p.x - stage.cam_x) > stage.HALF_W + 60.0:
+			if hit:
+				stage.fx.burst(Vector2(p.x, p.y - float(b[3])), Color("8aff60"), 16, 120.0, 0.45, 60.0, 2.5)
+				Sfx.play("hit", 1.4)
+			n.queue_free()
+			bolts.erase(b)
+			continue
+		n.z_index = int(p.y) + 1
+		n.queue_redraw()
+
+
+func _draw_bolt(b: Array) -> void:
+	var n: Node2D = b[0]
+	var p: Vector2 = b[1]
+	var dir: int = b[2]
+	var t := float(b[4])
+	var tex: Texture2D = bolt_tex[int(t * 15.0) % bolt_tex.size()]
+	var w := tex.get_width() / 3.0
+	var h := tex.get_height() / 3.0
+	var c := Vector2(p.x, p.y - float(b[3]))
+	# stín a záře na zemi
+	n.draw_circle(Vector2(p.x, p.y), 6.0, Color(0.2, 0.6, 0.15, 0.18))
+	n.draw_circle(c, 9.0 + sin(t * 30.0) * 1.5, Color(0.25, 0.8, 0.2, 0.22))
+	n.draw_set_transform(c, 0.0, Vector2(float(dir), 1.0))
+	n.draw_texture_rect(tex, Rect2(-w * 0.62, -h * 0.5, w, h), false, Color(1, 1, 1, 0.95))
+
+
+func _lich_pose() -> String:
+	match state:
+		S.ATTACK:
+			return "raise" if state_t < 30 else "thrust"
+		S.WALK:
+			return "walk" if fmod(anim_clock * 1.5, 1.0) < 0.5 else "idle"
+		S.HURT:
+			return "hurt"
+		S.DOWN, S.DEAD:
+			return "down"
+	return "idle"
+
+
+func _draw_lich() -> void:
+	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var LD = load("res://scripts/lich_data.gd")
+	var nm := _lich_pose()
+	var tex: Texture2D = l_tex[nm]
+	var m: Array = LD.POSE[nm]
+	var sc := lich_scale
+	var w := float(m[0]) * sc
+	var h := float(m[1]) * sc
+	var ax := float(m[2]) * sc
+	_ellipse(Vector2(0, z), 18.0 * sc, 4.0 * sc, Color(0, 0, 0, 0.3))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.55, 0.5)
+	var off := Vector2.ZERO
+	if state == S.WALK or state == S.IDLE:
+		off.y = -1.5 - sin(anim_clock * 2.4) * 1.5   # vznáší se nad zemí
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, off))
+	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	# záře krystalu na holi při kouzlení
+	if state == S.ATTACK and state_t > 14 and state_t < 40:
+		var gl := 0.25 + 0.2 * sin(float(state_t) * 0.8)
+		draw_circle(Vector2(w * 0.25, -h * (0.95 if state_t < 30 else 0.55)), 8.0 * sc, Color(0.4, 1.0, 0.3, gl))
 	draw_set_transform_matrix(Transform2D.IDENTITY)

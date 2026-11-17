@@ -28,9 +28,9 @@ GRIM = ["14100e", "1e1814", "29211b", "352a22", "42352a", "514133", "62503f", "7
         "1f2a1c", "2c3a26", "3c4c30", "4e5e3a", "62704a", "7a845a"]  # tlumené zelené (voda, rákos)
 # výřez země z obrázku (zlomky šířky/výšky), aby nebyly vidět kořeny na okrajích
 GROUND_CROP = {"swamp": (0.0, 0.08, 1.0, 1.0), "jungle": (0.0, 0.08, 1.0, 1.0)}
-SPLIT_COMPONENTS = {"jungle", "swamp", "mountain", "graveyard"}
+SPLIT_COMPONENTS = {"jungle", "swamp", "mountain", "graveyard", "castle"}
 SHEET_REL = {"graveyard": {"mid2": 0.45}}  # menší objekty (hroby) vůči hrobkám
-SKY_CROP = {"jungle": (0.0, 0.58), "swamp": (0.0, 0.55), "mountain": (0.0, 0.74), "graveyard": (0.0, 0.7)}  # z obrázku jen horní část (bez podlahy)
+SKY_CROP = {"jungle": (0.0, 0.58), "swamp": (0.0, 0.55), "mountain": (0.0, 0.74), "graveyard": (0.0, 0.7), "castle": (0.0, 0.74)}  # z obrázku jen horní část (bez podlahy)
 
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.5

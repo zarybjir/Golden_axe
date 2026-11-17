@@ -19,6 +19,7 @@ from build_bg import grade, RES  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BARREL_H = 34      # výška sudu ve hře (logické px)
 DRAGON_H = 136
+LICH_H = 104       # výška liche (stoj) ve hře
 CHAMOIS_H = 76     # výška démonického kamzíka (stoj)
 GOLEM_H = 150      # výška kamenného obra (stoj) ve hře
 ZOMBIE_H = 98       # výška zombie (chůze) ve hře     # výška draka v klidu (logické px)
@@ -136,6 +137,32 @@ def main():
                 fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
             fo.write("}\n")
         print(cmeta)
+    lpath = f"{ROOT}/art/source/grim_lich.png"
+    if os.path.exists(lpath):
+        lp_ = grid(lpath, 3, 2)
+        names = ["idle", "walk", "raise", "thrust", "hurt", "down"]
+        kl = LICH_H * RES / lp_[0].shape[0]
+        lmeta = {}
+        for name, c in zip(names, lp_):
+            w, h = save(c, kl, f"{ROOT}/art/enemy_sprite/lich_{name}.png")
+            al = c[..., 3] > 100
+            ys, xs = np.nonzero(al[int(al.shape[0] * 0.9):])
+            ax = float(xs.mean()) if xs.size else c.shape[1] / 2
+            lmeta[name] = [round(w / RES, 1), round(h / RES, 1), round(ax * kl / RES, 1)]
+        with open(f"{ROOT}/scripts/lich_data.gd", "w") as fo:
+            fo.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_props.py\n")
+            fo.write("## póza: [šířka, výška, kotva x (střed nohou)] v logických px\n\nconst POSE := {\n")
+            for n_, v in lmeta.items():
+                fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
+            fo.write("}\n")
+        print(lmeta)
+    bpath = f"{ROOT}/art/source/grim_bolt.png"
+    if os.path.exists(bpath):
+        for i, c in enumerate(parts(bpath, 4, rows=True)):
+            # efekt bez barevného ztlumení (zelená záře má svítit)
+            im = Image.fromarray(c, "RGBA")
+            k = 64 * RES / c.shape[1]
+            im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS).save(f"{ROOT}/art/fx/bolt_{i}.png")
     idle, roar = parts(f"{ROOT}/art/source/grim_dragon.png", 2)
     k = DRAGON_H * RES / idle.shape[0]   # obě pózy ve stejném měřítku
     meta = {}

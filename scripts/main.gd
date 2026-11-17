@@ -265,7 +265,7 @@ func _on_completed(stats: Dictionary) -> void:
 	if stage_index + 1 < StageScript.STAGES.size():
 		items.append(["Next stage", next_stage])
 	else:
-		title = "The dragon is slain!"
+		title = "The Dark Palace has fallen!"
 		text += "\n\nAll stages complete!"
 	items.append(["Play stage again", restart_stage])
 	items.append(["Main menu", show_title])
@@ -652,6 +652,23 @@ func _take_shots() -> void:
 	await _wait(0.95)
 	_save_shot("8_magie")
 	await _wait(1.0)
+	# palác: lich střílí zelenou střelu
+	start_stage(4)
+	stage.debug_jump_to_wave(0)
+	await _wait(2.6)
+	for f in stage.fighters:
+		if f.get("kind") == "lich":
+			f.pos = stage.player.pos + Vector2(170.0, 0.0)
+			f.facing = -1
+			f.start_move("lich_cast")
+			await _wait(0.4)
+			_save_shot("10_lich_kouzli")
+			await _wait(0.45)
+			_save_shot("10b_lich_strela")
+			break
+	stage.debug_jump_to_wave(3)
+	await _wait(3.0)
+	_save_shot("10c_kral_lichu")
 	pause()
 	await _wait(0.4)
 	_save_shot("9_pauza")

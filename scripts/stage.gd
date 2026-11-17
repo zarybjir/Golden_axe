@@ -50,6 +50,12 @@ const STAGES := [
 		{"x": 1300.0, "enemies": [["golem", 1], ["skeleton", -1], ["ghoul", -1]]},
 		{"x": 1760.0, "enemies": [["dragon", 1], ["ghoul", -1]], "boss": true},
 	]},
+	{"name": "The Dark Palace", "biome": "castle", "waves": [
+		{"x": 420.0, "enemies": [["lich", 1], ["skeleton", -1], ["ghoul", 1]]},
+		{"x": 860.0, "enemies": [["lich", 1], ["lich", -1], ["zombie", 1]]},
+		{"x": 1300.0, "enemies": [["chamois", 1], ["lich", -1], ["skeleton", 1], ["lich", 1]]},
+		{"x": 1760.0, "enemies": [["lich_king", 1], ["lich", -1], ["skeleton", -1]], "boss": true},
+	]},
 ]
 
 var stage_index := 0
@@ -99,6 +105,13 @@ func _preload_enemies() -> void:
 	var EA = load("res://scripts/enemy_anims.gd")
 	for k in kinds:
 		var sets: Dictionary = EA.SETS.get(k, {}).get("anims", {})
+		if k == "lich" or k == "lich_king":
+			for n in ["idle", "walk", "raise", "thrust", "hurt", "down"]:
+				_warm.append(load("res://art/enemy_sprite/lich_%s.png" % n))
+			for i in 4:
+				_warm.append(load("res://art/fx/bolt_%d.png" % i))
+			if ResourceLoader.exists("res://scripts/lich_anims.gd"):
+				sets = load("res://scripts/lich_anims.gd").ANIMS
 		if k == "chamois":
 			for n in ["idle", "run1", "run2", "rear", "charge", "down"]:
 				_warm.append(load("res://art/enemy_sprite/kamzik_%s.png" % n))
@@ -289,7 +302,7 @@ func _spawn_wave(w: Dictionary) -> void:
 			var en := _make_enemy(kind, at, side)
 			if rise:
 				en.start_rise(dirt_tex[randi() % dirt_tex.size()])
-			if kind == "ogre" or kind == "golem":
+			if kind == "ogre" or kind == "golem" or kind == "lich_king":
 				boss = en
 				Sfx.play("roar")
 		i += 1
