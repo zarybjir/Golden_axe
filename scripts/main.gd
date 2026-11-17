@@ -6,6 +6,7 @@ const HudScript := preload("res://scripts/hud.gd")
 const BackgroundScript := preload("res://scripts/background.gd")
 const Fighter := preload("res://scripts/fighter.gd")
 const TouchScript := preload("res://scripts/touch.gd")
+const TitleScript := preload("res://scripts/title.gd")
 
 enum State { TITLE, PLAYING, PAUSED, RESULTS }
 
@@ -19,6 +20,9 @@ var menu: Control = null
 var title_bg: CanvasLayer = null
 var ui_theme: Theme
 var touch: TouchScript = null
+var lives := -1            # zbývající životy na celou hru (-1 = neomezeně)
+var rebinding := ""        # akce, pro kterou se právě čeká na klávesu/tlačítko
+var rebind_t := 0.0
 
 var smoke := false
 var smoke_time := 0.0
@@ -64,6 +68,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if rebind_t > 0.0:
+		rebind_t -= delta
+	if rebinding != "":
+		return
 	if smoke:
 		_smoke(delta)
 	if Input.is_action_just_pressed("pause"):
@@ -85,24 +93,112 @@ func show_title() -> void:
 	if title_bg == null:
 		title_bg = CanvasLayer.new()
 		title_bg.layer = -10
-		title_bg.add_child(BackgroundScript.new())
+		title_bg.add_child(TitleScript.new())
 		add_child(title_bg)
-	_show_menu("KLADIVO", "Kovářova pomsta", [
-		["Hrát", start_game],
-		["Výběr úrovně", show_stage_select],
-		["Ukončit hru", quit_game],
-	], "X – úder (opakuj pro kombo)   A – skok   B – úskok\nY – runová magie   Start – pauza", false)
+	_show_menu("HAMMER", "The Blacksmith's Revenge", [
+		["Play", start_game],
+		["Difficulty: %s" % Settings.DIFF_NAMES[Settings.difficulty], _cycle_difficulty],
+		["Stage select", show_stage_select],
+		["Controls", show_controls],
+		["Quit", quit_game],
+	], _controls_hint(), false, 1)
+
+
+func _cycle_difficulty() -> void:
+	Settings.cycle_difficulty()
+	_show_title_menu_at(1)
+
+
+func _show_title_menu_at(focus: int) -> void:
+	show_title()
+	_focus_item(focus)
+
+
+func _difficulty_text() -> String:
+	match Settings.difficulty:
+		"hard":
+			return "Hard: 3 lives, tougher monsters."
+		"hell":
+			return "Hell: one life, monsters tougher and stronger."
+	return "Easy: unlimited lives."
+
+
+func _controls_hint() -> String:
+	return _difficulty_text() + "\nControls can be changed in the Controls menu."
+
+
+# ---------------------------------------------------------------- ovládání
+
+func show_controls(focus: int = 0) -> void:
+	rebinding = ""
+	var items: Array = []
+	for a in Settings.ACTIONS:
+		items.append(["%s:  %s  |  %s" % [Settings.ACTION_NAMES[a], Settings.key_text(a), Settings.pad_text(a)],
+			_start_rebind.bind(a)])
+	items.append(["Reset to defaults", _reset_controls])
+	items.append(["Back", _controls_back])
+	_show_menu("Controls", "Keyboard  |  Gamepad", items,
+		"Select an action, then press the new key or gamepad button.", state != State.TITLE, 2)
+	_focus_item(focus)
+
+
+func _controls_back() -> void:
+	if state == State.PAUSED:
+		pause()
+	else:
+		show_title()
+
+
+func _start_rebind(action: String) -> void:
+	rebinding = action
+	rebind_t = 0.25
+	_show_menu("Controls", "", [], "Press a new key or gamepad button for\n%s" % Settings.ACTION_NAMES[action], state != State.TITLE)
+
+
+func _reset_controls() -> void:
+	Settings.reset_controls()
+	show_controls(Settings.ACTIONS.size())
+
+
+func _input(event: InputEvent) -> void:
+	if rebinding == "" or rebind_t > 0.0 or not event.is_pressed() or event.is_echo():
+		return
+	var a := rebinding
+	if event is InputEventKey:
+		Settings.bind_key(a, event.physical_keycode)
+	elif event is InputEventJoypadButton:
+		Settings.bind_pad(a, event.button_index)
+	else:
+		return
+	get_viewport().set_input_as_handled()
+	Sfx.play("select")
+	rebinding = ""
+	show_controls(Settings.ACTIONS.find(a))
+
+
+func _focus_item(i: int) -> void:
+	if menu == null:
+		return
+	var buttons := menu.find_children("*", "Button", true, false)
+	if i >= 0 and i < buttons.size():
+		(buttons[i] as Button).call_deferred("grab_focus")
 
 
 func show_stage_select() -> void:
 	var items: Array = []
 	for i in StageScript.STAGES.size():
-		items.append(["%d. %s" % [i + 1, StageScript.STAGES[i]["name"]], start_stage.bind(i)])
-	items.append(["Zpět", show_title])
-	_show_menu("Výběr úrovně", "", items, "", false)
+		items.append(["%d. %s" % [i + 1, StageScript.STAGES[i]["name"]], _start_from.bind(i)])
+	items.append(["Back", show_title])
+	_show_menu("Stage select", "", items, "", false)
+
+
+func _start_from(i: int) -> void:
+	lives = Settings.lives()
+	start_stage(i)
 
 
 func start_game() -> void:
+	lives = Settings.lives()
 	start_stage(0)
 
 
@@ -124,6 +220,8 @@ func start_stage(index: int) -> void:
 	get_tree().paused = false
 	stage = StageScript.new()
 	stage.stage_index = index
+	stage.lives = lives
+	stage.game_over.connect(_on_game_over)
 	stage.completed.connect(_on_completed)
 	world.add_child(stage)
 	hud.stage = stage
@@ -136,11 +234,12 @@ func pause() -> void:
 	state = State.PAUSED
 	get_tree().paused = true
 	Sfx.play("select")
-	_show_menu("Pauza", "", [
-		["Pokračovat", resume],
-		["Začít úroveň znovu", restart_stage],
-		["Hlavní menu", show_title],
-		["Ukončit hru", quit_game],
+	_show_menu("Paused", "", [
+		["Resume", resume],
+		["Restart stage", restart_stage],
+		["Controls", show_controls],
+		["Main menu", show_title],
+		["Quit", quit_game],
 	])
 
 
@@ -156,18 +255,37 @@ func _on_completed(stats: Dictionary) -> void:
 	state = State.RESULTS
 	get_tree().paused = true
 	var secs := int(stats["time"])
-	var text := "Skóre: %d\nPoražení nepřátelé: %d\nČas: %d:%02d\nPorážky: %d" % [
+	lives = int(stats.get("lives", lives))
+	var text := "Score: %d\nEnemies defeated: %d\nTime: %d:%02d\nDeaths: %d" % [
 		stats["score"], stats["kills"], secs / 60, secs % 60, stats["deaths"]]
+	if lives >= 0:
+		text += "\nLives left: %d" % lives
 	var items: Array = []
-	var title := "Úroveň dokončena!"
+	var title := "Stage complete!"
 	if stage_index + 1 < StageScript.STAGES.size():
-		items.append(["Další úroveň", next_stage])
+		items.append(["Next stage", next_stage])
 	else:
-		title = "Drak poražen!"
-		text += "\n\nVšechny úrovně dokončeny!"
-	items.append(["Hrát úroveň znovu", restart_stage])
-	items.append(["Hlavní menu", show_title])
+		title = "The dragon is slain!"
+		text += "\n\nAll stages complete!"
+	items.append(["Play stage again", restart_stage])
+	items.append(["Main menu", show_title])
 	_show_menu(title, text, items)
+
+
+## Došly životy: konec hry.
+func _on_game_over() -> void:
+	_set_touch(false)
+	state = State.RESULTS
+	get_tree().paused = true
+	_show_menu("GAME OVER", "You have no lives left.", [
+		["Try again", _retry],
+		["Main menu", show_title],
+	])
+
+
+func _retry() -> void:
+	lives = Settings.lives()
+	restart_stage()
 
 
 func quit_game() -> void:
@@ -187,7 +305,7 @@ func _close_menu() -> void:
 	menu = null
 
 
-func _show_menu(title: String, subtitle: String, items: Array, hint: String = "", dim: bool = true) -> void:
+func _show_menu(title: String, subtitle: String, items: Array, hint: String = "", dim: bool = true, layout: int = 0) -> void:
 	_close_menu()
 	menu = Control.new()
 	menu.theme = ui_theme
@@ -200,23 +318,42 @@ func _show_menu(title: String, subtitle: String, items: Array, hint: String = ""
 		menu.add_child(shade)
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if layout == 1:
+		# úvodní obrazovka: menu vlevo na tmavém přechodu, palác zůstane vidět
+		var grad := Gradient.new()
+		grad.set_color(0, Color(0, 0, 0, 0.78))
+		grad.set_color(1, Color(0, 0, 0, 0.0))
+		var gt := GradientTexture2D.new()
+		gt.gradient = grad
+		gt.fill_to = Vector2(1, 0)
+		var shade_l := TextureRect.new()
+		shade_l.texture = gt
+		shade_l.stretch_mode = TextureRect.STRETCH_SCALE
+		shade_l.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+		shade_l.anchor_right = 0.62
+		shade_l.offset_right = 0
+		menu.add_child(shade_l)
+		center.anchor_right = 0.42
 	menu.add_child(center)
+	var compact := layout == 2
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 1 if compact else 6)
 	center.add_child(box)
-	var tl := _label(title, 22 if dim else 40)
+	var tl := _label(title, 18 if compact else (22 if dim else 40))
 	tl.add_theme_color_override("font_color", Color("f0d050"))
 	box.add_child(tl)
 	if subtitle != "":
 		box.add_child(_label(subtitle, 12))
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
+	spacer.custom_minimum_size = Vector2(0, 2 if compact else 6)
 	box.add_child(spacer)
 	var first: Button = null
 	for item in items:
 		var b := Button.new()
 		b.text = item[0]
-		b.custom_minimum_size = Vector2(170, 0)
+		b.custom_minimum_size = Vector2(260 if compact else 170, 0)
+		if compact:
+			b.add_theme_font_size_override("font_size", 9)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		var cb: Callable = item[1]
 		b.pressed.connect(_on_menu_button.bind(cb))
@@ -382,6 +519,10 @@ func _take_shots() -> void:
 	DirAccess.make_dir_recursive_absolute(shots_dir)
 	await _wait(1.0)
 	_save_shot("1_menu")
+	show_controls()
+	await _wait(0.3)
+	_save_shot("1b_ovladani")
+	show_title()
 	start_game()
 	stage.debug_jump_to_wave(0)
 	await _wait(2.4)

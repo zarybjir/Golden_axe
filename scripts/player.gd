@@ -177,7 +177,7 @@ func mount_beast(b: Node2D) -> void:
 	set_state(S.RIDE)
 	invuln = 20
 	Sfx.play("roar", 1.4)
-	stage.popup("NA KONĚ!", pos + Vector2(-20, -60), Color("9ad870"))
+	stage.popup("MOUNT UP!", pos + Vector2(-20, -60), Color("9ad870"))
 
 
 func _ride(dir: Vector2) -> void:

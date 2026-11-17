@@ -29,7 +29,7 @@ const KINDS := {
 	# Kamenný obr (hory): zblízka mlátí pěstí, zdálky vyrve ze země balvan a hodí ho.
 	"golem": {"hp": 300, "range": 50.0, "speed": Vector2(30, 20), "reach": 30.0, "attack": "golem_punch", "cool": 60,
 		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3500, "armor": true,
-		"name": "KAMENNÝ OBR", "hit_w": 18.0, "depth": 12.0},
+		"name": "STONE GIANT", "hit_w": 18.0, "depth": 12.0},
 	# Démonický kamzík (hory): drží si odstup, vzepne se a rozběhne se, narazí rohama.
 	"chamois": {"hp": 40, "range": 22.0, "speed": Vector2(95, 58), "reach": 20.0, "attack": "chamois_charge", "cool": 80,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 300, "hit_w": 22.0, "depth": 4.0},
@@ -37,7 +37,7 @@ const KINDS := {
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
 	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
 		"parts": "ogre", "weapon": "tree_club", "grip": Vector2(4.5, 13.0), "scale": 3.6, "score": 3000, "armor": true,
-		"name": "OBR GRUMOR", "hit_w": 7.0, "depth": 10.0},
+		"name": "GRUMOR THE OGRE", "hit_w": 7.0, "depth": 10.0},
 }
 
 var kind := "goblin"
@@ -79,6 +79,8 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	cfg = KINDS[kind].duplicate()
 	max_hp = int(cfg["hp"])
+	if max_hp < 999:
+		max_hp = int(round(max_hp * Settings.hp_mult()))
 	hp = max_hp
 	setup_parts(cfg["parts"], cfg["weapon"], cfg["grip"])
 	body_scale = float(cfg["scale"])
@@ -349,7 +351,7 @@ func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
 		Sfx.play("hit", 0.55 if kind == "ogre" else 0.8)
 		var hy := 120.0 if kind == "ogre" else 60.0
 		stage.fx.burst(Vector2(pos.x - dir * 14.0, pos.y - hy), Color("fff4c0"), 10, 120.0, 0.25, 0.0, 2.0)
-		stage.popup("BLOK", pos + Vector2(-8, -hy - 10.0), Color("c8c8d0"))
+		stage.popup("BLOCK", pos + Vector2(-10, -hy - 10.0), Color("c8c8d0"))
 		return
 	blocking = false
 	hurt_len = 16
@@ -553,12 +555,16 @@ func _zombie_hit(dir: int) -> void:
 	facing = -dir
 	Sfx.play("hit", 0.7)
 	stage.fx.burst(Vector2(pos.x, pos.y - 60.0), Color("4a2a1a"), 8, 110.0, 0.4, 300.0, 2.0)
-	if incoming_move == "magic" or z_hits >= Z_TOTAL_HITS:
+	# těžší obtížnost: zombie vydrží víc (Easy 3+6, Hard 4+8, Hell 6+12)
+	var mult := Settings.hp_mult()
+	var arm_hits := int(round(Z_ARM_HITS * mult))
+	var total_hits := int(round(Z_TOTAL_HITS * mult))
+	if incoming_move == "magic" or z_hits >= total_hits:
 		blocking = false
 		hurt_len = 16
 		super.take_hit(999, dir, true, 0.0)
 		return
-	if z_phase == 0 and z_hits >= Z_ARM_HITS:
+	if z_phase == 0 and z_hits >= arm_hits:
 		_sever_arm(dir)
 	pickup_t = 0
 	# zombie se jen zapotácí, nepadá

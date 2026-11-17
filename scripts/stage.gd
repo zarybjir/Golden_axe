@@ -2,6 +2,8 @@ extends Node2D
 ## Jedna úroveň beat 'em upu: kamera, vlny nepřátel, zásahy, hitstop, předměty.
 
 signal completed(stats: Dictionary)
+signal game_over
+var lives := -1   # zbývající životy (-1 = neomezeně), nastaví main.gd
 
 const PlayerScript := preload("res://scripts/player.gd")
 const EnemyScript := preload("res://scripts/enemy.gd")
@@ -21,19 +23,19 @@ const BARRELS := [[300.0, 204.0, "meat"], [640.0, 268.0, "rune"], [1040.0, 212.0
 	[1460.0, 262.0, "meat"], [1560.0, 206.0, "rune"]]
 ## Úrovně za sebou. Poslední vlna s "boss": true úroveň ukončí.
 const STAGES := [
-	{"name": "Močály", "biome": "swamp", "waves": [
+	{"name": "The Marshes", "biome": "swamp", "waves": [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["ghoul", -1], ["ghoul", 1]]},
 		{"x": 860.0, "enemies": [["bat", 1], ["bat", -1], ["ghoul", 1]]},
 		{"x": 1300.0, "enemies": [["skeleton", 1], ["ghoul", -1], ["ghoul", 1]]},
 		{"x": 1760.0, "enemies": [["ogre", 1], ["ghoul", -1], ["ghoul", 1]], "boss": true},
 	]},
-	{"name": "Hřbitov", "biome": "graveyard", "waves": [
+	{"name": "The Graveyard", "biome": "graveyard", "waves": [
 		{"x": 420.0, "enemies": [["zombie", 1], ["ghoul", -1], ["skeleton", -1]]},
 		{"x": 860.0, "enemies": [["zombie", 1], ["bat", -1], ["ghoul", -1], ["bat", 1]]},
 		{"x": 1300.0, "enemies": [["rider", 1], ["zombie", -1], ["skeleton", 1], ["ghoul", 1]]},
 		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["zombie", 1], ["ghoul", -1]], "boss": true},
 	]},
-	{"name": "Džungle", "biome": "jungle",
+	{"name": "The Jungle", "biome": "jungle",
 		"logs": [600.0, 1090.0, 1540.0],
 		"traps": [[380.0, 250.0], [780.0, 215.0], [940.0, 268.0], [1220.0, 232.0], [1400.0, 272.0], [1700.0, 222.0]],
 		"waves": [
@@ -42,7 +44,7 @@ const STAGES := [
 		{"x": 1300.0, "enemies": [["spider", 1], ["spider", -1], ["native", 1], ["vine", -1]]},
 		{"x": 1760.0, "enemies": [["ogre", 1], ["vine", -1], ["native", 1]], "boss": true},
 	]},
-	{"name": "Horský průsmyk", "biome": "mountain", "rocks": true, "waves": [
+	{"name": "The Mountain Pass", "biome": "mountain", "rocks": true, "waves": [
 		{"x": 420.0, "enemies": [["chamois", 1], ["skeleton", -1], ["ghoul", 1]]},
 		{"x": 860.0, "enemies": [["rider", 1], ["chamois", -1], ["skeleton", 1]]},
 		{"x": 1300.0, "enemies": [["golem", 1], ["skeleton", -1], ["ghoul", -1]]},
@@ -478,10 +480,10 @@ func _pickups() -> void:
 		if absf(pr.pos.x - player.pos.x) < 26.0 and absf(pr.pos.y - player.pos.y) < 14.0:
 			if pr.kind == "meat":
 				player.hp = mini(player.hp + 35, player.max_hp)
-				popup("+ZDRAVÍ", pr.pos, Color("9ad870"))
+				popup("+HEALTH", pr.pos, Color("9ad870"))
 			else:
 				player.runes = mini(player.runes + 1, 4)
-				popup("+RUNA", pr.pos, Color("40d8ff"))
+				popup("+RUNE", pr.pos, Color("40d8ff"))
 			Sfx.play("pickup")
 			fx.burst(Vector2(pr.pos.x, pr.pos.y - 8.0), Color("fff4a0"), 10, 70.0, 0.4, 0.0, 2.0)
 			props.erase(pr)
@@ -517,6 +519,11 @@ func _player_death() -> void:
 	respawn_t += 1
 	if respawn_t == 50:
 		deaths += 1
+		if lives > 0:
+			lives -= 1
+			if lives == 0:
+				game_over.emit()
+				return
 		player.hp = player.max_hp
 		player.drown_t = 0
 		player.sink = 0.0
@@ -528,7 +535,7 @@ func _player_death() -> void:
 			tries += 1
 		player.set_state(Fighter.S.IDLE)
 		player.invuln = 120
-		popup("ZNOVU DO BOJE!", player.pos + Vector2(-30, -40), Color("f0d050"))
+		popup("BACK INTO THE FIGHT!", player.pos + Vector2(-40, -40), Color("f0d050"))
 		# nepřátelé se jen odsunou kousek dál, žádné zranění ani sražení
 		for f in fighters:
 			if f != player and f.alive() and f.get("vel") != null:
@@ -727,7 +734,7 @@ func finish() -> void:
 	player.controls = false
 	Sfx.play("win")
 	await get_tree().create_timer(2.0, false).timeout
-	completed.emit({"score": score, "kills": kills, "deaths": deaths, "time": time})
+	completed.emit({"score": score, "kills": kills, "deaths": deaths, "time": time, "lives": lives})
 
 
 # ---------------------------------------------------------------- kreslení země

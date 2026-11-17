@@ -1,5 +1,5 @@
 extends Control
-## Ukazatele: zdraví, runy, skóre, zdraví bosse a šipka "VPŘED".
+## Ukazatele: zdraví, runy, životy, skóre a zdraví bosse.
 
 var stage: Node2D = null
 var score_label: Label
@@ -16,10 +16,10 @@ func _ready() -> void:
 	name_label.text = "MIREK"
 	score_label = _label(Vector2(380, 2), 10)
 	go_label = _label(Vector2(392, 120), 16)
-	go_label.text = "VPŘED ►"
+	go_label.text = "FORWARD ►"
 	go_label.add_theme_color_override("font_color", Color("f0d050"))
 	boss_label = _label(Vector2(120, 270), 9)
-	boss_label.text = "ZLOBR GRUMOR"
+	boss_label.text = ""
 
 
 func _label(p: Vector2, fsize: int) -> Label:
@@ -38,7 +38,8 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	var st = stage
-	score_label.text = "Skóre %d" % st.score
+	score_label.text = "Score %d" % st.score
+	name_label.text = "MIREK" if st.lives < 0 else "MIREK   x%d" % st.lives
 	go_label.visible = false   # bez šipky "VPŘED" – hra nevede za ruku
 	boss_label.visible = st.boss != null and is_instance_valid(st.boss)
 	if boss_label.visible:

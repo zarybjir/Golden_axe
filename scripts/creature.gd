@@ -53,15 +53,15 @@ func _ready() -> void:
 		speed = Vector2(95, 60)
 		hit_w = 26.0
 		hit_depth = 10.0
-		display_name = "ještěr"
+		display_name = "lizard"
 		team = 1 if rider != null else 2
 	else:
 		team = 1
 		body_scale = 2.0
-		max_hp = 420
+		max_hp = int(round(420 * Settings.hp_mult()))
 		hit_w = 34.0
 		hit_depth = 18.0
-		display_name = "DRAK ŽHAVOŠ"
+		display_name = "EMBER THE DRAGON"
 		armor = true
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		for n in ["idle", "roar"]:

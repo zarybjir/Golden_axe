@@ -240,6 +240,8 @@ func _move_finished() -> void:
 
 ## Zásah: dmg = poškození, dir = směr úderu (+1 doprava), knock = srazit k zemi.
 func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
+	if team == 0 and dmg > 0:
+		dmg = int(round(dmg * Settings.dmg_mult()))   # obtížnost Hell: nepřátelé zraňují víc
 	if state == S.RIDE:
 		dismount()
 		knock = true
