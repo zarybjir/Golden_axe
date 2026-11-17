@@ -82,6 +82,10 @@ func _ready() -> void:
 		for n in ZombieData.POSE.keys():
 			z_tex[n] = load("res://art/enemy_sprite/zombie_%s.png" % n)
 		sprite_tex = z_tex["walk"]
+		# animace z videí (chůze, útok rukama; s utrženou rukou chůze a úder)
+		if ResourceLoader.exists("res://scripts/zombie_anims.gd"):
+			var za = load("res://scripts/zombie_anims.gd")
+			setup_anims(za.ANIMS, za.K)
 		sprite_h = float(ZombieData.POSE["walk"][1])
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if cfg.get("fly", false):
@@ -587,8 +591,31 @@ func _zombie_pose() -> String:
 	return "club_up"
 
 
+## Snímek animace zombie: [animace, index] nebo [] = statický obrázek póz.
+func _zombie_frame() -> Array:
+	if anim_tex.is_empty() or state == S.DOWN or state == S.DEAD or state == S.GETUP:
+		return []
+	if rise_t > 0:
+		return [] if sink > 40.0 else ["walk", 0]
+	if z_phase == 1:
+		return []
+	var w := "walk" if z_phase == 0 else "walk2"
+	var a := "attack" if z_phase == 0 else "attack2"
+	match state:
+		S.WALK:
+			return [w, int(anim_clock * (10.0 if z_phase == 0 else 16.0))]
+		S.ATTACK:
+			if not move.is_empty():
+				return [a, _move_frame(a)]
+	return [w, 0]
+
+
 func _draw_zombie() -> void:
 	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var fr := _zombie_frame()
+	if not fr.is_empty():
+		_draw_zombie_anim(fr[0], int(fr[1]))
 		return
 	var nm := _zombie_pose()
 	var tex: Texture2D = z_tex[nm]
@@ -644,5 +671,36 @@ func _draw_zombie() -> void:
 			draw_texture_rect_region(tex, Rect2(-ax, -h, w, vis), Rect2(0, 0, tex.get_width(), tex.get_height() * vis / h), mod)
 	else:
 		draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+	_draw_extra()
+
+
+func _draw_zombie_anim(nm: String, i: int) -> void:
+	var arr: Array = anim_tex[nm]
+	if anim_set[nm]["loop"]:
+		i = posmod(i, arr.size())
+	else:
+		i = clampi(i, 0, arr.size() - 1)
+	var tex: Texture2D = arr[i]
+	var off: Vector2 = anim_set[nm]["offsets"][i]
+	anim_cx = (off.x + tex.get_width() * 0.5) * anim_k * facing
+	if sink == 0.0 and drown_t == 0:
+		_ellipse(Vector2(0, z), 20.0, 5.0, Color(0, 0, 0, 0.3))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.55, 0.5)
+	var rot := 0.0
+	if state == S.HURT:
+		rot = -0.12
+	var hip := Vector2(0.0, -40.0)
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) \
+		* Transform2D(0.0, hip) * Transform2D(rot, Vector2.ZERO) * Transform2D(0.0, -hip) \
+		* Transform2D(0.0, Vector2(anim_k, anim_k), 0.0, Vector2.ZERO))
+	if sink > 0.0:
+		var hv := clampf((-sink + 2.0) / anim_k - off.y, 0.0, float(tex.get_height()))
+		if hv > 0.0:
+			draw_texture_rect_region(tex, Rect2(off, Vector2(tex.get_width(), hv)), Rect2(0, 0, tex.get_width(), hv), mod)
+	else:
+		draw_texture(tex, off, mod)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	_draw_extra()

@@ -16,9 +16,9 @@ H = 98.0   # výška zombie ve hře (logické px) podle prvního snímku chůze
 # animace: (video, snímky, smyčka, snímek úderu)
 ANIMS = {
     "walk": ("awalk", list(range(0, 60)), True, -1),
-    "attack": ("aatk", list(range(0, 60)), False, 20),
-    "walk2": ("bwalk", list(range(0, 60)), True, -1),
-    "attack2": ("batk", list(range(0, 60)), False, 20),
+    "attack": ("aatk", list(range(18, 54)), False, 15),
+    "walk2": ("bwalk2", list(range(0, 30)), True, -1),
+    "attack2": ("batk", list(range(10, 46)), False, 12),
 }
 
 
