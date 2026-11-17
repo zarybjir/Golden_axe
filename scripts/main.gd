@@ -69,6 +69,8 @@ func _ready() -> void:
 		_take_shots()
 	if OS.get_cmdline_user_args().has("--zombietest"):
 		_zombie_test()
+	if OS.get_cmdline_user_args().has("--heavytest"):
+		_heavy_test()
 
 
 func _process(delta: float) -> void:
@@ -94,6 +96,7 @@ func show_title() -> void:
 	state = State.TITLE
 	get_tree().paused = false
 	_clear_stage()
+	Sfx.play_music("title")
 	if title_bg == null:
 		title_bg = CanvasLayer.new()
 		title_bg.layer = -10
@@ -301,6 +304,7 @@ func _show_results(stats: Dictionary) -> void:
 
 ## Došly životy: konec hry.
 func _on_game_over() -> void:
+	Sfx.play_music("")
 	_set_touch(false)
 	state = State.RESULTS
 	get_tree().paused = true
@@ -762,6 +766,29 @@ func _zombie_test() -> void:
 				print("ogre state=%d move=%s hp=%d | hero state=%d hp=%d x=%.0f" % [f.state, f.move_name, f.hp, stage.player.state, stage.player.hp, stage.player.pos.x - f.pos.x])
 			print("OGRETEST done")
 			break
+	get_tree().quit(0)
+
+
+## Test: podržený úder -> nabití -> silný úder; elitní nepřátelé a role.
+func _heavy_test() -> void:
+	await _wait(0.5)
+	start_stage(0)
+	stage.debug_jump_to_wave(0)
+	await _wait(2.5)
+	Input.action_press("attack")
+	for i in 8:
+		await _wait(0.12)
+		print("hold t=%.2f move=%s st=%d" % [i * 0.12, stage.player.move_name, stage.player.state_t])
+	Input.action_release("attack")
+	for i in 5:
+		await _wait(0.1)
+		print("released move=%s st=%d" % [stage.player.move_name, stage.player.state_t])
+	var el := 0
+	for f in stage.fighters:
+		if f.get("elite") == true:
+			el += 1
+	print("enemies=%d elite=%d tokens=%d" % [stage.fighters.size() - 1, el, stage.tokens.size()])
+	print("HEAVYTEST done")
 	get_tree().quit(0)
 
 

@@ -6,7 +6,8 @@ Do Steamu přidej jako "Non-Steam Game" soubor kladivo.sh.
 
 Výchozí ovládání (gamepad / klávesnice) – změnit jde v menu Controls:
   Pohyb ............ levá páčka, D-pad / WASD, šipky
-  Úder ............. X / J      (mačkej opakovaně = kombo 3 úderů, třetí srazí k zemi)
+  Úder ............. X / J      (mačkej opakovaně = kombo 3 úderů, třetí srazí k zemi;
+                                 podrž = nabití, pusť = drtivý silný úder)
   Skok ............. A / K, mezerník  (ve vzduchu X = úder ze skoku)
   Úskok ............ B / L, Shift     (krátce nezranitelný)
   Runová magie ..... Y / I      (spotřebuje všechny runy, zasáhne všechny nepřátele)
@@ -17,6 +18,7 @@ Obtížnost (v hlavním menu):
   Hard ... 3 životy, odolnější nepřátelé
   Hell ... 1 život, nepřátelé odolnější a silnější
 
+Elitní nepřátelé mají rudý nádech: vydrží dvakrát víc, bijí silněji a jsou rychlejší.
 Sudy rozbij – je v nich maso (zdraví) nebo runy.
 Aktualizace: při spuštění přes kladivo.sh probíhá sama (stačí internet).
 Ručně: stáhni nový Kladivo-linux.zip a rozbal ho přes starou složku.

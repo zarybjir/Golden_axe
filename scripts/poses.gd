@@ -41,6 +41,11 @@ const MOVES := {
 		"keys": [[0, "a1_hit"], [4, "a2_wind"], [6, "a2_hit"], [14, "a2_hit"], [20, "idle"]]},
 	"atk3": {"len": 30, "hit": [10, 12], "cancel": 20, "dmg": 14, "reach": 40, "push": 0, "knock": true, "next": "",
 		"keys": [[0, "a2_hit"], [7, "a3_wind"], [10, "a3_hit"], [22, "a3_hit"], [30, "idle"]]},
+	# silný úder: podrž úder – hrdina napřáhne kladivo nad hlavu a po puštění udeří
+	"charge": {"len": 99999, "hit": [99999, 99999], "cancel": 99999, "dmg": 0, "reach": 0, "push": 0, "knock": false, "next": "",
+		"keys": [[0, "a3_wind"], [1, "a3_wind"]]},
+	"heavy": {"len": 34, "hit": [6, 9], "cancel": 24, "dmg": 26, "reach": 46, "push": 0, "knock": true, "next": "",
+		"keys": [[0, "a3_wind"], [6, "a3_hit"], [26, "a3_hit"], [34, "idle"]]},
 	"jatk": {"len": 30, "hit": [6, 16], "cancel": 99, "dmg": 12, "reach": 34, "push": 0, "knock": true, "next": "",
 		"keys": [[0, "jump"], [3, "jatk"], [30, "jatk"]]},
 	"spider_stab": {"len": 46, "hit": [26, 31], "cancel": 99, "dmg": 9, "reach": 30, "push": 60, "knock": false, "next": "",

@@ -53,6 +53,9 @@ const KINDS := {
 
 var kind := "goblin"
 var cfg: Dictionary = {}
+var elite := false        # elitní varianta: vydrží víc, bije silněji, je rychlejší (rudý nádech)
+var dmg_mult := 1.0
+const ELITE_KINDS := ["ghoul", "skeleton", "native", "spider", "zombie", "chamois", "lich", "bat", "vine"]
 var cooldown := 60
 var has_token := false
 var slot := 0.0
@@ -170,6 +173,7 @@ func _ready() -> void:
 			down_len = anim_tex["fall"].size() * 3 / 2 + 35
 			getup_len = 60 if kind == "ogre" else 45
 	slot = randf_range(-40.0, 40.0)
+	_maybe_elite()
 
 
 ## Vylézání ze země (hřbitov): postava se zvedá z hrobu, kolem se hrne hlína.
@@ -284,6 +288,23 @@ func tick() -> void:
 			z = lerpf(z, HOVER_Z + sin(anim_clock * 3.0) * 6.0, 0.08)
 
 
+## Občas se objeví elitní nepřítel (častěji na vyšší obtížnost).
+func _maybe_elite() -> void:
+	if not ELITE_KINDS.has(kind):
+		return
+	var chance := {"easy": 0.12, "hard": 0.2, "hell": 0.3}.get(Settings.difficulty, 0.12) as float
+	if randf() >= chance:
+		return
+	elite = true
+	dmg_mult = 1.5
+	if max_hp < 999:
+		max_hp = int(max_hp * 2.0)
+		hp = max_hp
+	cfg["speed"] = (cfg["speed"] as Vector2) * 1.15
+	cfg["score"] = int(cfg["score"]) * 2
+	self_modulate = Color(1.3, 0.72, 0.66)
+
+
 func _ai() -> void:
 	cooldown -= 1
 	var p = stage.player
@@ -331,10 +352,22 @@ func _ai() -> void:
 		if kind == "vine" and not on_screen:
 			_walk_to(Vector2(stage.cam_x + signf(pos.x - stage.cam_x) * (stage.HALF_W - 60.0), p.pos.y))
 			return
+		# role: první útočník drží hrdinu zepředu, druhý ho obchází a útočí zezadu
+		var side := -float(facing)
+		var tk: Array = stage.tokens
+		if tk.size() >= 2 and tk[1] == self and is_instance_valid(tk[0]) and tk[0] != self:
+			var other_side := signf(tk[0].pos.x - p.pos.x)
+			if other_side != 0.0:
+				side = -other_side
+			if signf(pos.x - p.pos.x) != side and absf(dx) < reach * 2.5:
+				# oklikou kolem hrdiny (v hloubce mimo jeho řadu)
+				var dy_off := 26.0 if pos.y >= p.pos.y else -26.0
+				_walk_to(Vector2(p.pos.x + side * reach, clampf(p.pos.y + dy_off, Y_MIN, Y_MAX)))
+				return
 		if absf(dx) <= reach and absf(dy) <= 10.0 and cooldown <= 0:
 			start_move(cfg["attack"])
 			return
-		_walk_to(Vector2(p.pos.x - facing * reach * 0.85, p.pos.y))
+		_walk_to(Vector2(p.pos.x + side * reach * 0.85, p.pos.y))
 	else:
 		_walk_to(Vector2(p.pos.x - facing * 150.0, clampf(p.pos.y + slot, Y_MIN, Y_MAX)))
 
@@ -650,7 +683,7 @@ func _zombie_hit(dir: int) -> void:
 	Sfx.play("hit", 0.7)
 	stage.fx.burst(Vector2(pos.x, pos.y - 60.0), Color("4a2a1a"), 8, 110.0, 0.4, 300.0, 2.0)
 	# těžší obtížnost: zombie vydrží víc (Easy 3+6, Hard 4+8, Hell 6+12)
-	var mult := Settings.hp_mult()
+	var mult := Settings.hp_mult() * (1.5 if elite else 1.0)
 	var arm_hits := int(round(Z_ARM_HITS * mult))
 	var total_hits := int(round(Z_TOTAL_HITS * mult))
 	if incoming_move == "magic" or z_hits >= total_hits:
@@ -1190,7 +1223,7 @@ func _bolt_step() -> void:
 			if kind == "lich_king":
 				pl.take_hit(18, dir, true, 0.0)   # silnější střela Krále lichů srazí k zemi
 			else:
-				pl.take_hit(10, dir, false, 70.0)
+				pl.take_hit(int(10 * dmg_mult), dir, false, 70.0)
 			hit = true
 		if hit or absf(p.x - stage.cam_x) > stage.HALF_W + 60.0:
 			if hit:

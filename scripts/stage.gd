@@ -140,6 +140,7 @@ func _ready() -> void:
 	waves = st["waves"]
 	biome = st["biome"]
 	_preload_enemies()
+	Sfx.play_music(biome)
 	var bg_layer := CanvasLayer.new()
 	bg_layer.layer = -10
 	add_child(bg_layer)
@@ -241,6 +242,7 @@ func _update_camera() -> void:
 
 
 func shake(amount: float, duration: float) -> void:
+	Sfx.rumble(amount * 0.07, amount * 0.1, duration + 0.05)
 	if amount >= shake_amt or shake_t <= 0.0:
 		shake_amt = amount
 	shake_t = maxf(shake_t, duration)
@@ -293,6 +295,7 @@ func _spawn_wave(w: Dictionary) -> void:
 			add_child(cr)
 			fighters.append(cr)
 			if kind == "dragon":
+				Sfx.play_music("boss")
 				boss = cr
 				Sfx.play("roar", 0.7)
 		else:
@@ -308,6 +311,8 @@ func _spawn_wave(w: Dictionary) -> void:
 				en.start_rise(dirt_tex[randi() % dirt_tex.size()])
 			if kind == "ogre" or kind == "golem" or kind == "lich_king" or kind == "necro":
 				boss = en
+				if w.get("boss", false):
+					Sfx.play_music("boss")
 				Sfx.play("roar")
 		i += 1
 
@@ -433,18 +438,37 @@ func do_hits(att: Node2D) -> void:
 		var width: float = f.hit_w * f.body_scale
 		if dx >= -width * 0.3 and dx <= reach + width and dy <= 14.0 + f.hit_depth and absf(f.z - att.z) < 70.0:
 			att.hit_done.append(f)
-			var dmg: int = int(mv["dmg"])
+			var dmg: int = int(round(int(mv["dmg"]) * float(att.get("dmg_mult") if att.get("dmg_mult") != null else 1.0)))
 			var knock: bool = mv["knock"]
 			f.set("incoming_move", att.move_name)
 			f.take_hit(dmg, att.facing, knock, float(mv["push"]))
 			var hit_pos := Vector2(f.pos.x - att.facing * 4.0, f.pos.y - f.z - 22.0 * f.body_scale)
 			fx.burst(hit_pos, Color("fff4c0"), 8, 140.0, 0.22, 0.0, 2.0)
 			fx.burst(hit_pos, Color("d8402e") if att.team == 1 else Color("f0a040"), 5, 90.0, 0.3, 300.0, 2.0)
-			hitstop = 7 if knock else 4
-			shake(3.0 if knock else 1.5, 0.12)
+			var heavy: bool = att.move_name == "heavy"
+			hitstop = 12 if heavy else (7 if knock else 4)
+			shake(6.0 if heavy else (3.0 if knock else 1.5), 0.2 if heavy else 0.12)
 			Sfx.play("heavy" if knock else "hit", randf_range(0.9, 1.1))
+			Sfx.play(_hit_sound(f), randf_range(0.9, 1.1))
+			if heavy:
+				Sfx.play("smash", 0.9)
 			if att.team == 0:
 				score += dmg * 10
+				Sfx.rumble(0.25, 0.1, 0.08)
+			elif f == player:
+				Sfx.rumble(0.5, 0.6, 0.18)
+
+
+## Zvuk zásahu podle materiálu cíle.
+func _hit_sound(f: Node2D) -> String:
+	match str(f.get("kind")):
+		"skeleton", "lich", "lich_king", "necro":
+			return "hit_bone"
+		"golem":
+			return "hit_stone"
+		"barrel", "":
+			return "hit"
+	return "hit_flesh"
 
 
 func magic_blast(p: Node2D, power: int) -> void:

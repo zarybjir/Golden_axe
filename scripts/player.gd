@@ -13,6 +13,9 @@ var magic_power := 0
 var jump_vx := 0.0
 var air_attacked := false
 var controls := true
+var hold_t := 0           # jak dlouho je podržen úder (silný úder)
+const CHARGE_START := 16  # po tolika snímcích držení začne nabíjení
+const CHARGE_FULL := 26   # nabitý silný úder
 
 
 func _ready() -> void:
@@ -53,6 +56,15 @@ func tick() -> void:
 		S.IDLE, S.WALK:
 			_neutral(dir)
 		S.ATTACK:
+			var held: bool = controls and Input.is_action_pressed("attack")
+			hold_t = hold_t + 1 if held else 0
+			if move_name == "charge":
+				_charging(dir, held)
+				return
+			if move_name == "atk1" and hold_t >= CHARGE_START and state_t >= 8:
+				start_move("charge")
+				Sfx.play("charge")
+				return
 			if move_name == "magic":
 				if state_t == 24:
 					stage.magic_blast(self, magic_power)
@@ -123,6 +135,29 @@ func _neutral(dir: Vector2) -> void:
 		walk_t += DT * 0.5
 		if state != S.IDLE:
 			set_state(S.IDLE)
+
+
+## Nabíjení silného úderu: držením úderu, puštěním se udeří. Úskok nabíjení zruší.
+func _charging(dir: Vector2, held: bool) -> void:
+	if _take("dodge"):
+		_dodge(dir)
+		return
+	if state_t % 5 == 0:
+		var c := Color("ffd060") if state_t >= CHARGE_FULL else Color("f08a30")
+		stage.fx.burst(Vector2(pos.x - facing * 6.0, pos.y - 80.0), c, 3, 60.0, 0.3, -20.0, 2.0)
+	if state_t == CHARGE_FULL:
+		Sfx.play("select", 0.6)
+		Sfx.rumble(0.3, 0.0, 0.12)
+		stage.fx.burst(Vector2(pos.x - facing * 6.0, pos.y - 84.0), Color("fff4a0"), 12, 110.0, 0.35, 0.0, 2.0)
+	if not held:
+		if state_t >= CHARGE_FULL:
+			_face(dir)
+			start_move("heavy")
+			Sfx.play("swing", 0.7)
+		else:
+			set_state(S.IDLE)
+			move = {}
+			move_name = ""
 
 
 func _face(dir: Vector2) -> void:

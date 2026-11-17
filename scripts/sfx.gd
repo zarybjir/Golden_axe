@@ -6,6 +6,8 @@ const RATE := 22050
 var sounds := {}
 var players: Array[AudioStreamPlayer] = []
 var next_player := 0
+var music: AudioStreamPlayer
+var music_name := ""
 
 
 func _ready() -> void:
@@ -34,6 +36,40 @@ func _ready() -> void:
 	sounds["fire"] = _mix(_noise_arr(1.1, 0.38, 3), _tone_arr(75.0, 45.0, 1.1, 0.22))
 	sounds["roar"] = _mix(_noise_arr(0.6, 0.25, 11), _tone_arr(110.0, 70.0, 0.6, 0.3))
 	sounds["go"] = _arp([523.0, 784.0], 0.1, 0.15)
+	# zásahy podle materiálu
+	sounds["hit_bone"] = _mix(_noise_arr(0.07, 0.4, 1), _tone_arr(1400.0, 600.0, 0.06, 0.18))
+	sounds["hit_stone"] = _mix(_noise_arr(0.25, 0.45, 7), _tone_arr(90.0, 35.0, 0.25, 0.35))
+	sounds["hit_flesh"] = _mix(_noise_arr(0.12, 0.3, 9), _tone_arr(140.0, 50.0, 0.12, 0.4))
+	sounds["charge"] = _tone(90.0, 260.0, 0.5, 0.12)
+	sounds["smash"] = _mix(_noise_arr(0.4, 0.5, 6), _tone_arr(100.0, 25.0, 0.4, 0.5))
+	music = AudioStreamPlayer.new()
+	music.volume_db = -9.0
+	add_child(music)
+
+
+## Zatřesení ovladače (vibrace) – na všech připojených ovladačích.
+func rumble(weak: float, strong: float, dur: float) -> void:
+	for d in Input.get_connected_joypads():
+		Input.start_joy_vibration(d, clampf(weak, 0.0, 1.0), clampf(strong, 0.0, 1.0), dur)
+
+
+## Hudba na pozadí (art/music/<název>.ogg, smyčka). Prázdný název = ticho.
+func play_music(track: String) -> void:
+	if track == music_name:
+		return
+	music_name = track
+	if track == "":
+		music.stop()
+		return
+	var path := "res://art/music/%s.ogg" % track
+	if not ResourceLoader.exists(path):
+		music.stop()
+		return
+	var st: AudioStream = load(path)
+	if st is AudioStreamOggVorbis:
+		(st as AudioStreamOggVorbis).loop = true
+	music.stream = st
+	music.play()
 
 
 func play(sound_name: String, pitch: float = 1.0) -> void:

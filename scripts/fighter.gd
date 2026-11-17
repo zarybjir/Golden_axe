@@ -372,7 +372,10 @@ func _anim_pick() -> Array:
 		S.WALK:
 			return ["walk", int(anim_clock * 14.0), 0.0]
 		S.ATTACK:
-			var nm := move_name if anim_set.has(move_name) else "atk1"
+			if move_name == "charge":
+				# nabíjení silného úderu: kladivo napřažené nad hlavou, chvěje se
+				return ["atk3", maxi(int(anim_set["atk3"]["impact"]) - 2, 0), sin(float(state_t) * 1.3) * 0.02]
+			var nm := move_name if anim_set.has(move_name) else ("atk3" if move_name == "heavy" else "atk1")
 			return [nm, _move_frame(nm), 0.0]
 		S.JUMP:
 			if move_name == "jatk":
