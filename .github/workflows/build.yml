@@ -48,7 +48,8 @@ jobs:
           mkdir -p build/Kladivo
           godot --headless --path . --export-release "Linux" build/Kladivo/Kladivo.x86_64
           chmod +x build/Kladivo/Kladivo.x86_64
-          cp NAVOD.txt build/Kladivo/
+          cp NAVOD.txt kladivo.sh build/Kladivo/
+          chmod +x build/Kladivo/kladivo.sh
           command -v zip >/dev/null || (apt-get update -qq && apt-get install -y -qq zip)
           cd build && zip -r Kladivo-linux.zip Kladivo
 
