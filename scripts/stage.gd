@@ -33,7 +33,7 @@ const STAGES := [
 		{"x": 420.0, "enemies": [["zombie", 1], ["ghoul", -1], ["skeleton", -1]]},
 		{"x": 860.0, "enemies": [["zombie", 1], ["bat", -1], ["ghoul", -1], ["bat", 1]]},
 		{"x": 1300.0, "enemies": [["rider", 1], ["zombie", -1], ["skeleton", 1], ["ghoul", 1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["zombie", 1], ["ghoul", -1]], "boss": true},
+		{"x": 1760.0, "enemies": [["necro", 1], ["zombie", -1], ["skeleton", 1]], "boss": true},
 	]},
 	{"name": "The Jungle", "biome": "jungle",
 		"logs": [600.0, 1090.0, 1540.0],
@@ -65,6 +65,7 @@ var ground_tex: Texture2D = null
 var water_tex: Array = []
 var hazards: Node2D = null
 var corpse_tex: Array = []
+var fallen: Array = []     # padlí nemrtví [pozice, druh] – nekromant je může oživit
 var dirt_tex: Array = []    # rozhrabaná hlína (hřbitov – mrtví lezou ze země)
 var mounds: Array = []      # [pozice, textura, čas]
 
@@ -105,6 +106,9 @@ func _preload_enemies() -> void:
 	var EA = load("res://scripts/enemy_anims.gd")
 	for k in kinds:
 		var sets: Dictionary = EA.SETS.get(k, {}).get("anims", {})
+		if k == "necro":
+			for n in ["idle", "walk", "raise", "kneel", "slash", "down"]:
+				_warm.append(load("res://art/enemy_sprite/necro_%s.png" % n))
 		if k == "lich" or k == "lich_king":
 			for n in ["idle", "walk", "raise", "thrust", "hurt", "down"]:
 				_warm.append(load("res://art/enemy_sprite/lich_%s.png" % n))
@@ -302,7 +306,7 @@ func _spawn_wave(w: Dictionary) -> void:
 			var en := _make_enemy(kind, at, side)
 			if rise:
 				en.start_rise(dirt_tex[randi() % dirt_tex.size()])
-			if kind == "ogre" or kind == "golem" or kind == "lich_king":
+			if kind == "ogre" or kind == "golem" or kind == "lich_king" or kind == "necro":
 				boss = en
 				Sfx.play("roar")
 		i += 1
@@ -357,6 +361,14 @@ func debug_jump_to_wave(index: int) -> void:
 	wave_i = index
 	cam_x = float(waves[index]["x"]) - 1.0
 	player.pos = Vector2(cam_x + 10.0, 236.0)
+
+
+## Oživení mrtvého (nekromant): vyleze ze země na daném místě.
+func raise_dead(kind: String, at: Vector2) -> Node2D:
+	var en := _make_enemy(kind, at, 1 if at.x < player.pos.x else -1)
+	if not dirt_tex.is_empty():
+		en.call("start_rise", dirt_tex[randi() % dirt_tex.size()])
+	return en
 
 
 func _living_enemies() -> int:
@@ -518,6 +530,11 @@ func _cleanup() -> void:
 				spawn_pickup("rune", f.pos)
 			elif roll < 0.3:
 				spawn_pickup("meat", f.pos)
+			var fk = f.get("kind")
+			if f != boss and (fk == "zombie" or fk == "ghoul" or fk == "skeleton"):
+				fallen.append([f.pos, fk])
+				if fallen.size() > 8:
+					fallen.pop_front()
 			if f == boss:
 				boss = null
 			fighters.erase(f)

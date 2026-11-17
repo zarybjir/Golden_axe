@@ -590,6 +590,19 @@ func _take_shots() -> void:
 			await _wait(1.2)
 			_save_shot("2h_zombie_mlati")
 			break
+	# nekromant (boss hřbitova): vzývá a mrtví vylézají ze země
+	stage.debug_jump_to_wave(3)
+	await _wait(2.4)
+	for f in stage.fighters:
+		if f.get("kind") == "necro":
+			f.pos = stage.player.pos + Vector2(140.0, 0.0)
+			f.facing = -1
+			f.start_move("necro_summon")
+			await _wait(0.5)
+			_save_shot("2i_nekromant")
+			await _wait(1.2)
+			_save_shot("2j_nekromant_vyvolal")
+			break
 	start_stage(2)
 	stage.debug_jump_to_wave(0)
 	await _wait(2.6)

@@ -19,6 +19,7 @@ from build_bg import grade, RES  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BARREL_H = 34      # výška sudu ve hře (logické px)
 DRAGON_H = 136
+NECRO_H = 100      # výška nekromanta (stoj) ve hře
 LICH_H = 104       # výška liche (stoj) ve hře
 CHAMOIS_H = 76     # výška démonického kamzíka (stoj)
 GOLEM_H = 150      # výška kamenného obra (stoj) ve hře
@@ -156,6 +157,25 @@ def main():
                 fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
             fo.write("}\n")
         print(lmeta)
+    npath = f"{ROOT}/art/source/grim_necro.png"
+    if os.path.exists(npath):
+        np_ = grid(npath, 3, 2)
+        names = ["idle", "walk", "raise", "kneel", "slash", "down"]
+        kn = NECRO_H * RES / np_[0].shape[0]
+        nmeta = {}
+        for name, c in zip(names, np_):
+            w, h = save(c, kn, f"{ROOT}/art/enemy_sprite/necro_{name}.png")
+            al = c[..., 3] > 100
+            ys, xs = np.nonzero(al[int(al.shape[0] * 0.9):])
+            ax = float(xs.mean()) if xs.size else c.shape[1] / 2
+            nmeta[name] = [round(w / RES, 1), round(h / RES, 1), round(ax * kn / RES, 1)]
+        with open(f"{ROOT}/scripts/necro_data.gd", "w") as fo:
+            fo.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_props.py\n")
+            fo.write("## póza: [šířka, výška, kotva x (střed nohou)] v logických px\n\nconst POSE := {\n")
+            for n_, v in nmeta.items():
+                fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
+            fo.write("}\n")
+        print(nmeta)
     bpath = f"{ROOT}/art/source/grim_bolt.png"
     if os.path.exists(bpath):
         for i, c in enumerate(parts(bpath, 4, rows=True)):

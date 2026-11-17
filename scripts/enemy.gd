@@ -39,6 +39,11 @@ const KINDS := {
 	"lich_king": {"hp": 240, "range": 34.0, "speed": Vector2(50, 32), "reach": 20.0, "attack": "lich_cast", "cool": 50,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 5000, "hit_w": 16.0,
 		"name": "THE LICH KING", "armor": true},
+	# Nekromant (boss hřbitova): drží si odstup, oživuje padlé a vyvolává zombie ze země,
+	# zblízka sekne kostěnou dýkou. Když padne, padnou i všichni, které oživil.
+	"necro": {"hp": 200, "range": 30.0, "speed": Vector2(45, 30), "reach": 20.0, "attack": "necro_slash", "cool": 50,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 5000, "hit_w": 14.0,
+		"name": "THE NECROMANCER", "armor": true},
 	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
 	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
@@ -60,6 +65,9 @@ const ZombieData := preload("res://scripts/zombie_data.gd")
 const GolemData := preload("res://scripts/golem_data.gd")
 const ChamoisData := preload("res://scripts/chamois_data.gd")
 var l_tex := {}
+var n_tex := {}
+var summons: Array = []    # nekromant: koho oživil / vyvolal
+var summon_cool := 90
 var bolt_tex: Array = []
 var bolts: Array = []      # [Node2D, pozice (x, zem y), směr, výška, čas]
 var lich_scale := 1.0
@@ -113,6 +121,13 @@ func _ready() -> void:
 			var za = load("res://scripts/zombie_anims.gd")
 			setup_anims(za.ANIMS, za.K)
 		sprite_h = float(ZombieData.POSE["walk"][1])
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if kind == "necro":
+		var ND = load("res://scripts/necro_data.gd")
+		for n in ND.POSE.keys():
+			n_tex[n] = load("res://art/enemy_sprite/necro_%s.png" % n)
+		sprite_tex = n_tex["idle"]
+		sprite_h = 100.0
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if kind == "lich" or kind == "lich_king":
 		var LD = load("res://scripts/lich_data.gd")
@@ -212,6 +227,8 @@ func tick() -> void:
 	if state == S.DEAD:
 		dead_t += 1
 		_release()
+		if kind == "necro" and dead_t == 1:
+			_necro_release_dead()
 		return
 	match state:
 		S.RIDE:
@@ -221,6 +238,8 @@ func tick() -> void:
 		S.ATTACK:
 			if kind == "golem" and move_name == "golem_throw":
 				_golem_throw_step()
+			if move_name == "necro_summon":
+				_necro_summon_step()
 			if move_name == "lich_smash" and state_t == 2:
 				Sfx.play("roar", 1.5)
 			if move_name == "lich_cast" and state_t == 34:
@@ -253,6 +272,9 @@ func _ai() -> void:
 		return
 	if kind == "lich" or kind == "lich_king":
 		_lich_ai(p)
+		return
+	if kind == "necro":
+		_necro_ai(p)
 		return
 	if kind == "golem":
 		throw_cool -= 1
@@ -428,6 +450,9 @@ func _anim_pick() -> Array:
 ## Lidojed a netopýr mají zatím jen jeden obrázek – pohyb se dopočítává
 ## (kymácení, výpad, záklon, pád, mávání křídly).
 func _draw() -> void:
+	if kind == "necro":
+		_draw_necro()
+		return
 	if kind == "lich" or kind == "lich_king":
 		_draw_lich()
 		return
@@ -1224,4 +1249,117 @@ func _draw_lich() -> void:
 	if state == S.ATTACK and state_t > 14 and state_t < 40:
 		var gl := 0.25 + 0.2 * sin(float(state_t) * 0.8)
 		draw_circle(Vector2(w * 0.25, -h * (0.95 if state_t < 30 else 0.55)), 8.0 * sc, Color(0.4, 1.0, 0.3, gl))
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+# ---------------------------------------------------------------- hřbitov: nekromant
+
+const MAX_SUMMONS := 4
+
+
+func _necro_ai(p) -> void:
+	summons = summons.filter(func(s) -> bool: return is_instance_valid(s) and s.alive())
+	summon_cool -= 1
+	var dx: float = p.pos.x - pos.x
+	var dy: float = p.pos.y - pos.y
+	facing = 1 if dx > 0.0 else -1
+	if summon_cool <= 0 and summons.size() < MAX_SUMMONS:
+		start_move("necro_summon")
+		summon_cool = 330 + randi() % 120
+		return
+	if not p.alive():
+		return
+	if absf(dx) < 48.0:
+		if cooldown <= 0 and absf(dy) < 10.0:
+			start_move("necro_slash")
+			return
+		_walk_to(Vector2(p.pos.x - facing * 150.0, pos.y))
+		return
+	_walk_to(Vector2(p.pos.x - facing * 150.0, p.pos.y))
+
+
+## Vzývání: ruce nahoru, pak klekne a vlije magii do země – mrtví vstanou.
+func _necro_summon_step() -> void:
+	if state_t % 6 == 0:
+		stage.fx.burst(Vector2(pos.x + facing * 10.0, pos.y - 80.0), Color("7a5aa0"), 4, 50.0, 0.7, -40.0, 2.5)
+	if state_t == 10:
+		Sfx.play("roar", 0.55)
+	if state_t == 44:
+		stage.shake(3.0, 0.3)
+		var spots: Array = []
+		# nejdřív oživí padlé, které leží poblíž
+		var fallen: Array = stage.get("fallen") if stage.get("fallen") != null else []
+		while not fallen.is_empty() and spots.size() < 2:
+			var f: Array = fallen.pop_back()
+			var fp: Vector2 = f[0]
+			if absf(fp.x - stage.cam_x) < stage.HALF_W - 20.0:
+				spots.append([fp, f[1]])
+		# jinak vyvolá zombie ze země kolem hrdiny
+		while spots.size() < 2:
+			var pl = stage.player
+			var sx: float = pl.pos.x + randf_range(70.0, 140.0) * (1.0 if randf() < 0.5 else -1.0)
+			sx = clampf(sx, stage.cam_x - stage.HALF_W + 30.0, stage.cam_x + stage.HALF_W - 30.0)
+			spots.append([Vector2(sx, randf_range(Y_MIN + 6.0, Y_MAX - 6.0)), "zombie"])
+		for sp in spots:
+			if summons.size() >= MAX_SUMMONS:
+				break
+			var e = stage.raise_dead(sp[1], sp[0])
+			if e != null:
+				summons.append(e)
+				stage.fx.burst(Vector2(sp[0].x, sp[0].y - 4.0), Color("6aff70"), 14, 80.0, 0.7, -30.0, 2.5)
+
+
+## Nekromant padl: všichni, které oživil, padnou s ním.
+func _necro_release_dead() -> void:
+	for s in summons:
+		if is_instance_valid(s) and s.alive():
+			s.set("incoming_move", "magic")
+			s.take_hit(999, 1, true, 0.0)
+	summons.clear()
+
+
+func _necro_pose() -> String:
+	match state:
+		S.ATTACK:
+			if move_name == "necro_summon":
+				return "raise" if state_t < 34 else "kneel"
+			return "slash" if state_t >= 12 and state_t < 32 else "idle"
+		S.WALK:
+			return "walk" if fmod(anim_clock * 1.6, 1.0) < 0.5 else "idle"
+		S.DOWN, S.DEAD:
+			return "down"
+	return "idle"
+
+
+func _draw_necro() -> void:
+	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var ND = load("res://scripts/necro_data.gd")
+	var nm := _necro_pose()
+	var tex: Texture2D = n_tex[nm]
+	var m: Array = ND.POSE[nm]
+	var w := float(m[0])
+	var h := float(m[1])
+	var ax := float(m[2])
+	_ellipse(Vector2(0, z), 18.0, 4.0, Color(0, 0, 0, 0.3))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.55, 0.5)
+	var rot := 0.0
+	var off := Vector2.ZERO
+	match state:
+		S.WALK:
+			rot = sin(anim_clock * 6.0) * 0.03
+			off.y = -absf(sin(anim_clock * 6.0)) * 1.5
+		S.IDLE:
+			rot = sin(anim_clock * 1.7) * 0.02
+		S.HURT:
+			rot = -0.14
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) * Transform2D(rot, off))
+	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	# nekromantská záře v rukou při vzývání
+	if state == S.ATTACK and move_name == "necro_summon":
+		var gl := 0.22 + 0.15 * sin(float(state_t) * 0.6)
+		var hand := Vector2(w * 0.3, -h * 0.95) if state_t < 34 else Vector2(w * 0.55 - ax, -6.0)
+		draw_circle(hand, 9.0, Color(0.45, 1.0, 0.45, gl))
 	draw_set_transform_matrix(Transform2D.IDENTITY)
