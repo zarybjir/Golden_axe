@@ -439,6 +439,8 @@ func _take_shots() -> void:
 	stage.debug_jump_to_wave(1)
 	await _wait(2.6)
 	_save_shot("3_hora_jezdec")
+	stage.debug_jump_to_wave(0)
+	await _wait(1.6)
 	for f in stage.fighters:
 		if f.get("kind") == "chamois":
 			f.pos = stage.player.pos + Vector2(170.0, 0.0)
@@ -449,6 +451,8 @@ func _take_shots() -> void:
 			await _wait(0.45)
 			_save_shot("3b_kamzik_utok")
 			break
+	stage.debug_jump_to_wave(1)
+	await _wait(2.4)
 	var b := _beast()
 	if b != null:
 		if b.rider != null:
