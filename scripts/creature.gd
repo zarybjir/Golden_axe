@@ -325,7 +325,7 @@ func _draw() -> void:
 	var mod := Color.WHITE
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
-	elif telegraph and (atk_t / 3) % 2 == 0:
+	elif SHOW_HINTS and telegraph and (atk_t / 3) % 2 == 0:
 		mod = Color(1.0, 0.85, 0.45)
 	var back := Color(0.65, 0.65, 0.72) * mod
 	back.a = 1.0
@@ -379,7 +379,7 @@ func _draw() -> void:
 		draw_rect(Rect2(-6, -25, 13, 1), Color("b07a40"))
 		draw_rect(Rect2(-3, -21, 3, 7), Color("8a5428"))
 	draw_set_transform_matrix(Transform2D.IDENTITY)
-	if telegraph:
+	if SHOW_HINTS and telegraph:
 		var y := -90.0 * body_scale * 0.6
 		draw_rect(Rect2(-3, y, 6, 14), Color("f0d050"))
 		draw_rect(Rect2(-3, y + 17, 6, 5), Color("f0d050"))
@@ -398,7 +398,7 @@ func _draw_painted() -> void:
 	var mod := Color(0.92, 0.9, 0.88)
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
-	elif telegraph and (atk_t / 3) % 2 == 0:
+	elif SHOW_HINTS and telegraph and (atk_t / 3) % 2 == 0:
 		mod = Color(1.0, 0.85, 0.45)
 	if state == S.DEAD or state == S.DOWN:
 		mod = mod * Color(0.7, 0.66, 0.64)
@@ -412,7 +412,7 @@ func _draw_painted() -> void:
 	draw_set_transform_matrix(xf * Transform2D(0.0, Vector2(1.0, breathe), 0.0, Vector2.ZERO))
 	draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
-	if telegraph:
+	if SHOW_HINTS and telegraph:
 		var y := -h - 24.0
 		draw_rect(Rect2(-3, y, 6, 14), Color("f0d050"))
 		draw_rect(Rect2(-3, y + 17, 6, 5), Color("f0d050"))

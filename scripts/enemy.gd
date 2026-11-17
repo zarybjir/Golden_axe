@@ -162,7 +162,7 @@ func _release() -> void:
 
 
 func _draw_extra() -> void:
-	if telegraph and state == S.ATTACK:
+	if SHOW_HINTS and telegraph and state == S.ATTACK:
 		var y := -44.0 * body_scale
 		if sprite_tex != null:
 			y = -sprite_h - 16.0
@@ -262,7 +262,7 @@ func _draw() -> void:
 	var mod := Color.WHITE
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
-	elif telegraph and (state_t / 3) % 2 == 0:
+	elif SHOW_HINTS and telegraph and (state_t / 3) % 2 == 0:
 		mod = Color(1.0, 0.85, 0.45)
 	var rot := 0.0
 	var off := Vector2.ZERO

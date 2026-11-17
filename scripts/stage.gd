@@ -42,7 +42,7 @@ const STAGES := [
 		{"x": 1300.0, "enemies": [["spider", 1], ["spider", -1], ["native", 1], ["vine", -1]]},
 		{"x": 1760.0, "enemies": [["ogre", 1], ["vine", -1], ["native", 1]], "boss": true},
 	]},
-	{"name": "Horský průsmyk", "biome": "mountain", "waves": [
+	{"name": "Horský průsmyk", "biome": "mountain", "rocks": true, "waves": [
 		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", 1]]},
 		{"x": 860.0, "enemies": [["rider", 1], ["ghoul", -1], ["skeleton", 1]]},
 		{"x": 1300.0, "enemies": [["ogre", 1], ["skeleton", -1], ["ghoul", -1]]},
@@ -97,11 +97,12 @@ func _ready() -> void:
 			water_tex.append(load("res://art/bg/%s/water_%d.png" % [biome, wi]))
 		for ci in int(ParallaxScript.BgData.OBJS.get(biome + "_corpse", 0)):
 			corpse_tex.append(load("res://art/bg/%s/corpse_%d.png" % [biome, ci]))
-		if st.has("logs") or st.has("traps"):
+		if st.has("logs") or st.has("traps") or st.get("rocks", false):
 			hazards = HazardsScript.new()
 			hazards.stage = self
 			hazards.biome = biome
 			hazards.logs = st.get("logs", [])
+			hazards.rocks_on = st.get("rocks", false)
 			for tr in st.get("traps", []):
 				hazards.traps.append([Vector2(tr[0], tr[1]), 0, 0.0, 1])
 			add_child(hazards)
@@ -198,7 +199,6 @@ func _camera_logic() -> void:
 				finish()
 			else:
 				go_sign = true
-				Sfx.play("go")
 		return
 	var target := clampf(player.pos.x + 30.0, HALF_W, LEVEL_LEN - HALF_W)
 	if target > cam_x:
@@ -608,8 +608,6 @@ func _drowning() -> void:
 			ripple(f.pos)
 			fx.burst(Vector2(f.pos.x, f.pos.y - 6.0), Color("6b7a5a"), 18, 120.0, 0.6, 300.0, 3.0)
 			Sfx.play("land", 0.5)
-			if is_player:
-				popup("TŮŇ!", f.pos + Vector2(-12, -60), Color("9ad870"))
 
 
 ## Rozkládající se ostatky ležící na cestě – ztlumené, aby moc nevystupovaly.

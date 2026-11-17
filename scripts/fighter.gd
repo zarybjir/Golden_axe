@@ -39,6 +39,7 @@ var mount: Node2D = null
 var down_t := 0
 var armor := false
 var telegraph := false
+const SHOW_HINTS := false   # žádná upozornění na útoky (hra nevede za ruku)
 
 # Díly postavy
 var p_head: Texture2D
@@ -315,7 +316,7 @@ func _draw() -> void:
 	var mod := Color.WHITE
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
-	elif telegraph and (state_t / 3) % 2 == 0:
+	elif SHOW_HINTS and telegraph and (state_t / 3) % 2 == 0:
 		mod = Color(1.0, 0.85, 0.45)
 	var back := BACK * mod
 	back.a = 1.0

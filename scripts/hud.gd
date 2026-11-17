@@ -39,7 +39,7 @@ func _process(delta: float) -> void:
 		return
 	var st = stage
 	score_label.text = "Skóre %d" % st.score
-	go_label.visible = st.go_sign and fmod(t, 0.6) < 0.4
+	go_label.visible = false   # bez šipky "VPŘED" – hra nevede za ruku
 	boss_label.visible = st.boss != null and is_instance_valid(st.boss)
 	if boss_label.visible:
 		boss_label.text = st.boss.display_name

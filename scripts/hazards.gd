@@ -1,8 +1,8 @@
 extends Node2D
 ## Nástrahy prostředí v džungli:
 ##  - klády porostlé mechem přes celou cestu – hrdina je musí přeskočit,
-##  - nášlapné pasti – po šlápnutí cvakne, na kraji obrazovky blikne varování
-##    a v tom pruhu cesty proletí smrtelná šipka. Uhnout jde krokem nahoru/dolů,
+##  - nášlapné pasti – po šlápnutí cvakne, bez varování
+##    v tom pruhu cesty proletí smrtelná šipka. Uhnout jde krokem nahoru/dolů,
 ##    výskokem nebo úskokem. Past spouští i zraňuje jen hrdinu.
 
 const Fighter := preload("res://scripts/fighter.gd")
@@ -29,6 +29,13 @@ const LOG_SLANT := 0.3      # sklon klády (posun x na 1 px hloubky), sedí k š
 var log_w := 36.0
 var log_h := 140.0
 var logp_tex: Texture2D
+
+# Padající kameny (hory): shora občas spadne balvan; zasáhne jen hrdinu.
+var rocks_on := false
+var rock_tex: Array = []
+var rocks: Array = []       # [Node2D, x, y zem, z výška, vz, textura, šířka, čas po dopadu]
+var rock_wait := 2.0
+const ROCK_DMG := 12
 
 
 ## x klády v dané hloubce (kláda leží přes cestu lehce našikmo – vzadu víc vpravo)
@@ -59,6 +66,11 @@ func _ready() -> void:
 			n.draw.connect(_draw_log_band.bind(n, k, bi))
 			add_child(n)
 			log_nodes.append(n)
+	if rocks_on:
+		for i in 5:
+			var path := "res://art/props/rock_%d.png" % i
+			if ResourceLoader.exists(path):
+				rock_tex.append(load(path))
 	# šipky a varování nad vším
 	top_layer = Node2D.new()
 	top_layer.z_as_relative = false
@@ -73,6 +85,8 @@ func step(prev_x: float) -> void:
 	_block_logs(p, prev_x)
 	_update_traps(p)
 	_update_darts()
+	if rocks_on and not rock_tex.is_empty():
+		_update_rocks()
 	queue_redraw()
 	top_layer.queue_redraw()
 	for n in log_nodes:
@@ -104,7 +118,6 @@ func _update_traps(p) -> void:
 					# šipka letí od vzdálenějšího okraje obrazovky
 					t[3] = 1 if p.pos.x > stage.cam_x else -1
 					Sfx.play("select", 0.5)
-					stage.popup("!", pos + Vector2(-2, -20), Color("ff5040"))
 			1:
 				t[2] += Fighter.DT
 				if t[2] >= WARN_TIME:
@@ -135,12 +148,77 @@ func _update_darts() -> void:
 				f.take_hit(999, dir, true, 0.0)
 				stage.fx.burst(Vector2(f.pos.x, f.pos.y - 30.0), Color("8e2020"), 14, 120.0, 0.5, 300.0, 2.0)
 				Sfx.play("heavy", 1.3)
-				if f == stage.player:
-					stage.popup("OTRÁVENÁ ŠIPKA!", f.pos + Vector2(-40, -70), Color("ff5040"))
 				hit = true
 				break
 		if hit or absf(dp.x - stage.cam_x) > stage.HALF_W + 40.0:
 			darts.erase(d)
+
+
+func _update_rocks() -> void:
+	rock_wait -= Fighter.DT
+	if rock_wait <= 0.0 and not stage.finished:
+		rock_wait = randf_range(1.0, 2.6)
+		var p = stage.player
+		# občas přímo na hrdinu, jinak kamkoli na obrazovce
+		var x: float = p.pos.x + randf_range(-30.0, 30.0) if randf() < 0.45 else stage.cam_x + randf_range(-stage.HALF_W + 20.0, stage.HALF_W - 20.0)
+		var y: float = p.pos.y + randf_range(-8.0, 8.0) if randf() < 0.45 else randf_range(Fighter.Y_MIN + 4.0, Fighter.Y_MAX - 4.0)
+		var tex: Texture2D = rock_tex[randi() % rock_tex.size()]
+		var n := Node2D.new()
+		n.z_as_relative = false
+		n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		var r := [n, x, y, 330.0 + randf_range(0.0, 60.0), 0.0, tex, tex.get_width() / R, 0.0]
+		n.draw.connect(_draw_rock.bind(r))
+		add_child(n)
+		rocks.append(r)
+	for r in rocks.duplicate():
+		var n: Node2D = r[0]
+		if float(r[3]) > 0.0:
+			r[4] = float(r[4]) - 900.0 * Fighter.DT
+			r[3] = float(r[3]) + float(r[4]) * Fighter.DT
+			if float(r[3]) <= 0.0:
+				r[3] = 0.0
+				_rock_impact(r)
+		else:
+			r[7] = float(r[7]) + Fighter.DT
+			if float(r[7]) > 1.4:
+				n.queue_free()
+				rocks.erase(r)
+				continue
+		n.z_index = int(float(r[2])) + 1
+		n.queue_redraw()
+
+
+func _rock_impact(r: Array) -> void:
+	var at := Vector2(float(r[1]), float(r[2]))
+	var half := float(r[6]) * 0.5
+	stage.shake(4.0, 0.2)
+	stage.fx.dust(at, 12)
+	stage.fx.burst(at + Vector2(0, -6), Color("5a4a3a"), 10, 110.0, 0.5, 400.0, 3.0)
+	Sfx.play("heavy", 0.6)
+	var p = stage.player
+	if p.alive() and p.state != Fighter.S.DOWN and p.drown_t == 0 and p.z < 24.0 \
+			and absf(p.pos.x - at.x) < half + 6.0 and absf(p.pos.y - at.y) < 10.0 and p.can_be_hit():
+		p.take_hit(ROCK_DMG, 1 if p.pos.x >= at.x else -1, true, 0.0)
+
+
+func _draw_rock(r: Array) -> void:
+	var n: Node2D = r[0]
+	var tex: Texture2D = r[5]
+	var w := float(r[6])
+	var h := tex.get_height() / R
+	var x := float(r[1])
+	var y := float(r[2])
+	var zz := float(r[3])
+	var fade := clampf((1.4 - float(r[7])) / 0.5, 0.0, 1.0)
+	# stín na zemi (jen přirozený stín, žádné varování)
+	var k := clampf(1.0 - zz / 330.0, 0.0, 1.0)
+	if k > 0.35 or zz == 0.0:
+		var pts := PackedVector2Array()
+		for i in 16:
+			var an := TAU * i / 16.0
+			pts.append(Vector2(x + cos(an) * w * 0.5 * k, y + sin(an) * 3.5 * k))
+		n.draw_colored_polygon(pts, Color(0, 0, 0, 0.3 * k * fade))
+	n.draw_texture_rect(tex, Rect2(x - w * 0.5, y - h + 3.0 - zz, w, h), false, Color(0.9, 0.88, 0.86, fade))
 
 
 # ---------------------------------------------------------------- kreslení
@@ -182,8 +260,8 @@ func _draw_log_band(n: Node2D, k: int, bi: int) -> void:
 
 
 func _draw_top() -> void:
-	# varování na okraji obrazovky, odkud vyletí šipka
-	for t in traps:
+	# (varování na okraji obrazovky vypnuto – hra nevede za ruku)
+	for t in []:
 		if int(t[1]) == 1 and int(t[2] * 12.0) % 2 == 0:
 			var dir: int = t[3]
 			var pos: Vector2 = t[0]

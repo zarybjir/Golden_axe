@@ -2,7 +2,8 @@
 
 Použití:  python3 tools/build_props.py
 Vstupy:  art/source/grim_barrels.png (4 nádoby zleva: bažina, hřbitov, džungle, hory),
-         art/source/grim_dragon.png (2 pózy téhož draka: klid, řev).
+         art/source/grim_dragon.png (2 pózy téhož draka: klid, řev),
+         art/source/grim_rocks.png (padající kameny v horách).
 Výstup:  art/props/barrel_<biome>.png, art/enemy_sprite/drak_{idle,roar}.png, scripts/dragon_data.gd
 """
 import os
@@ -50,6 +51,11 @@ def main():
     os.makedirs(f"{ROOT}/art/props", exist_ok=True)
     for biome, c in zip(["swamp", "graveyard", "jungle", "mountain"], parts(f"{ROOT}/art/source/grim_barrels.png", 4)):
         save(c, BARREL_H * RES / c.shape[0], f"{ROOT}/art/props/barrel_{biome}.png")
+    rpath = f"{ROOT}/art/source/grim_rocks.png"
+    if os.path.exists(rpath):
+        for i, c in enumerate(parts(rpath, 5)):
+            hgt = [26, 34, 22, 30, 38][i]
+            save(c, hgt * RES / c.shape[0], f"{ROOT}/art/props/rock_{i}.png")
     idle, roar = parts(f"{ROOT}/art/source/grim_dragon.png", 2)
     k = DRAGON_H * RES / idle.shape[0]   # obě pózy ve stejném měřítku
     meta = {}
