@@ -102,6 +102,9 @@ func _ready() -> void:
 			g_tex[n] = load("res://art/enemy_sprite/golem_%s.png" % n)
 		sprite_tex = g_tex["idle"]
 		sprite_h = 150.0
+		if ResourceLoader.exists("res://scripts/golem_anims.gd"):
+			var ga = load("res://scripts/golem_anims.gd")
+			setup_anims(ga.ANIMS, ga.K)
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if cfg.get("fly", false):
 		flying = true
@@ -722,7 +725,7 @@ func _draw_zombie() -> void:
 	_draw_extra()
 
 
-func _draw_zombie_anim(nm: String, i: int) -> void:
+func _draw_zombie_anim(nm: String, i: int, shadow: float = 20.0) -> void:
 	var arr: Array = anim_tex[nm]
 	if anim_set[nm]["loop"]:
 		i = posmod(i, arr.size())
@@ -732,12 +735,12 @@ func _draw_zombie_anim(nm: String, i: int) -> void:
 	var off: Vector2 = anim_set[nm]["offsets"][i]
 	anim_cx = (off.x + tex.get_width() * 0.5) * anim_k * facing
 	if sink == 0.0 and drown_t == 0:
-		_ellipse(Vector2(0, z), 20.0, 5.0, Color(0, 0, 0, 0.3))
+		_ellipse(Vector2(0, z), shadow, shadow * 0.22, Color(0, 0, 0, 0.32))
 	var mod := Color(0.92, 0.9, 0.88)
 	if flash > 0:
 		mod = Color(1.0, 0.55, 0.5)
 	var rot := 0.0
-	if state == S.HURT:
+	if state == S.HURT and kind != "golem":
 		rot = -0.12
 	var hip := Vector2(0.0, -40.0)
 	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) \
@@ -839,8 +842,33 @@ func _golem_pose() -> String:
 	return "idle"
 
 
+## Snímek animace obra: [animace, index] nebo [] = statická póza.
+func _golem_frame() -> Array:
+	if anim_tex.is_empty() or state == S.DOWN or state == S.DEAD or state == S.GETUP:
+		return []
+	match state:
+		S.WALK:
+			return ["walk", int(anim_clock * 8.0)]
+		S.ATTACK:
+			if move_name == "golem_punch":
+				return ["punch", _move_frame("punch")]
+			if move_name == "golem_throw":
+				# odhození balvanu ve videu = snímek, kdy balvan ve hře vyletí (state_t 60)
+				var n: int = anim_tex["throw"].size()
+				var imp: int = anim_set["throw"]["impact"]
+				var t := float(state_t)
+				if t < 60.0:
+					return ["throw", int(t / 60.0 * float(imp))]
+				return ["throw", mini(n - 1, imp + int((t - 60.0) / 36.0 * float(n - imp)))]
+	return ["punch", 0]
+
+
 func _draw_golem() -> void:
 	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var gf := _golem_frame()
+	if not gf.is_empty():
+		_draw_zombie_anim(gf[0], int(gf[1]), 34.0)
 		return
 	var nm := _golem_pose()
 	var tex: Texture2D = g_tex[nm]

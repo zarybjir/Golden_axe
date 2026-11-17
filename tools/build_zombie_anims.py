@@ -30,15 +30,15 @@ def anchor(path):
     return float(feet.mean()), float(bottom), float(bottom - ys.min())
 
 
-def main(src, anims=ANIMS):
+def main(src, anims=ANIMS, kind="zombie", height=H):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    out = os.path.join(root, "art/enemy_anim/zombie")
+    out = os.path.join(root, "art/enemy_anim", kind)
     os.makedirs(out, exist_ok=True)
     for f in os.listdir(out):
         os.remove(os.path.join(out, f))
     _, _, h0 = anchor(f"{src}/k_{anims['walk'][0]}/cut/r_001.png")
-    k = H / h0
-    lines = ["extends RefCounted", "## VYGENEROVÁNO skriptem tools/build_zombie_anims.py – neupravovat ručně.", "",
+    k = height / h0
+    lines = ["extends RefCounted", f"## VYGENEROVÁNO skriptem tools/build_{kind}_anims.py – neupravovat ručně.", "",
              f"const K := {k:.4f}", "const ANIMS := {"]
     for name, (vid, frames, loop, impact) in anims.items():
         ax, ay, _ = anchor(f"{src}/k_{vid}/cut/r_001.png")
@@ -54,15 +54,15 @@ def main(src, anims=ANIMS):
             Image.fromarray(a, "RGBA").crop((x0, y0, x1, y1)).save(os.path.join(out, fn), quality=82, method=6)
             with open(os.path.join(out, fn + ".import"), "w") as g:
                 g.write('[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\n\n[deps]\n\n'
-                        f'source_file="res://art/enemy_anim/zombie/{fn}"\n\n[params]\n\n'
+                        f'source_file="res://art/enemy_anim/{kind}/{fn}"\n\n[params]\n\n'
                         'compress/mode=1\ncompress/lossy_quality=0.85\nmipmaps/generate=false\n')
-            paths.append(f'"res://art/enemy_anim/zombie/{fn}"')
+            paths.append(f'"res://art/enemy_anim/{kind}/{fn}"')
             offs.append(f"Vector2({x0 - ax:.1f}, {y0 - ay:.1f})")
         lines.append(f'\t"{name}": {{"loop": {str(loop).lower()}, "impact": {impact},')
         lines.append(f'\t\t"frames": [{", ".join(paths)}],')
         lines.append(f'\t\t"offsets": [{", ".join(offs)}]}},')
     lines += ["}", ""]
-    open(os.path.join(root, "scripts/zombie_anims.gd"), "w").write("\n".join(lines))
+    open(os.path.join(root, f"scripts/{kind}_anims.gd"), "w").write("\n".join(lines))
     print("hotovo, k =", round(k, 4))
 
 
