@@ -74,6 +74,8 @@ var dirt_tex: Array = []    # rozhrabaná hlína (hřbitov – mrtví lezou ze z
 var mounds: Array = []      # [pozice, textura, čas]
 
 var player: PlayerScript
+var player2: PlayerScript = null    # druhý hráč (připojí se Startem na druhém ovladači)
+var players: Array = []
 var fighters: Array = []
 var props: Array = []
 var fx: FxScript
@@ -190,6 +192,7 @@ func _ready() -> void:
 	player.pos = Vector2(90, 236)
 	add_child(player)
 	fighters.append(player)
+	players = [player]
 
 	for b in BARRELS:
 		var pr := PropScript.new()
@@ -207,12 +210,46 @@ func _ready() -> void:
 	popup(String(st["name"]).to_upper(), Vector2(cam_x - 6, 120), Color("f0d050"))
 
 
+## Připojení druhého hráče (stejný kovář v červeném).
+func join_p2() -> void:
+	if player2 != null:
+		return
+	player2 = PlayerScript.new()
+	player2.stage = self
+	player2.pfx = "p2_"
+	player2.pos = Vector2(player.pos.x - 30.0, clampf(player.pos.y + 20.0, Fighter.Y_MIN, Fighter.Y_MAX))
+	add_child(player2)
+	player2.make_red()
+	player2.invuln = 90
+	fighters.append(player2)
+	players.append(player2)
+	popup("PLAYER 2 JOINS!", player2.pos + Vector2(-40, -70), Color("ff7060"))
+	Sfx.play("bonus")
+
+
+## Nejbližší živý hrdina (koho nepřítel napadne).
+func nearest_player(at: Vector2) -> Node2D:
+	var best: Node2D = player
+	var bd := INF
+	for p in players:
+		if not is_instance_valid(p) or p.state == Fighter.S.DEAD:
+			continue
+		var d: float = absf(p.pos.x - at.x) + absf(p.pos.y - at.y) * 2.0
+		if d < bd:
+			bd = d
+			best = p
+	return best
+
+
 func _physics_process(_delta: float) -> void:
-	player.read_input()
+	for p in players:
+		p.read_input()
 	if hitstop > 0:
 		hitstop -= 1
 		return
-	var prev_x: float = player.pos.x
+	var prevs := {}
+	for p in players:
+		prevs[p] = p.pos.x
 	if not finished:
 		time += Fighter.DT
 	for f in fighters.duplicate():
@@ -220,7 +257,7 @@ func _physics_process(_delta: float) -> void:
 			f.tick()
 	_clamp_all()
 	if hazards != null:
-		hazards.step(prev_x)
+		hazards.step(prevs)
 	_pickups()
 	_cleanup()
 	_drowning()
@@ -265,11 +302,17 @@ func _camera_logic() -> void:
 			else:
 				go_sign = true
 		return
-	var target := clampf(player.pos.x + 30.0, HALF_W, LEVEL_LEN - HALF_W)
+	# kamera sleduje průměr živých hrdinů (oba musí zůstat na obrazovce)
+	var sx := 0.0
+	var n := 0
+	for p in players:
+		if p.state != Fighter.S.DEAD:
+			sx += p.pos.x
+			n += 1
+	var px: float = sx / n if n > 0 else player.pos.x
+	var target := clampf(px + 30.0, HALF_W, LEVEL_LEN - HALF_W)
 	if target > cam_x:
 		cam_x = minf(cam_x + maxf((target - cam_x) * 0.12, 0.5), target)
-		if cam_x > player.pos.x - 60.0:
-			pass
 	if go_sign and cam_x > (waves[wave_i - 1]["x"] as float) + 80.0:
 		go_sign = false
 	if wave_i < waves.size() and cam_x >= float(waves[wave_i]["x"]):
@@ -362,7 +405,7 @@ func area_hit(att: Node2D, x0: float, x1: float, dy_tol: float, dmg: int, knock:
 
 func debug_jump_to_wave(index: int) -> void:
 	for f in fighters.duplicate():
-		if f != player:
+		if not players.has(f):
 			f.queue_free()
 			fighters.erase(f)
 	tokens.clear()
@@ -370,6 +413,8 @@ func debug_jump_to_wave(index: int) -> void:
 	wave_i = index
 	cam_x = float(waves[index]["x"]) - 1.0
 	player.pos = Vector2(cam_x + 10.0, 236.0)
+	if player2 != null:
+		player2.pos = Vector2(cam_x - 20.0, 256.0)
 
 
 ## Poražený boss vrátí kousek svačiny – vyletí k boxu nahoře.
@@ -401,9 +446,10 @@ func _living_enemies() -> int:
 func _clamp_all() -> void:
 	var left := cam_x - HALF_W
 	var right := cam_x + HALF_W
-	player.pos.x = clampf(player.pos.x, left + 10.0, right - 10.0)
+	for p in players:
+		p.pos.x = clampf(p.pos.x, left + 10.0, right - 10.0)
 	for f in fighters:
-		if f == player:
+		if players.has(f):
 			continue
 		if not f.entered and f.pos.x > left + 12.0 and f.pos.x < right - 12.0:
 			f.entered = true
@@ -411,7 +457,7 @@ func _clamp_all() -> void:
 			# do obrazovky se vrací plynule (žádné skoky)
 			var cx := clampf(f.pos.x, left + 6.0, right - 6.0)
 			f.pos.x = move_toward(f.pos.x, cx, 180.0 * Fighter.DT)
-		if f.get("rideable") == true and f.rider == player:
+		if f.get("rideable") == true and players.has(f.rider):
 			f.entered = true
 
 
@@ -469,7 +515,7 @@ func do_hits(att: Node2D) -> void:
 			if att.team == 0:
 				score += dmg * 10
 				Sfx.rumble(0.25, 0.1, 0.08)
-			elif f == player:
+			elif players.has(f):
 				Sfx.rumble(0.5, 0.6, 0.18)
 
 
@@ -532,6 +578,11 @@ func spawn_pickup(kind: String, at: Vector2) -> void:
 
 
 func _pickups() -> void:
+	for p in players:
+		_pickups_for(p)
+
+
+func _pickups_for(player: PlayerScript) -> void:
 	if not player.alive() or player.state == Fighter.S.DOWN or player.state == Fighter.S.JUMP:
 		return
 	for pr in props.duplicate():
@@ -555,7 +606,7 @@ func _pickups() -> void:
 
 func _cleanup() -> void:
 	for f in fighters.duplicate():
-		if f == player:
+		if players.has(f):
 			continue
 		if f.state == Fighter.S.DEAD and f.dead_t > 45:
 			if f == boss and f.get("kind") == "dragon":
@@ -582,11 +633,16 @@ func _cleanup() -> void:
 
 
 func _player_death() -> void:
+	for p in players:
+		_player_death_for(p)
+
+
+func _player_death_for(player: PlayerScript) -> void:
 	if player.state != Fighter.S.DEAD:
-		respawn_t = 0
+		player.respawn_t = 0
 		return
-	respawn_t += 1
-	if respawn_t == 50:
+	player.respawn_t += 1
+	if player.respawn_t == 50:
 		deaths += 1
 		if lives > 0:
 			lives -= 1
@@ -607,7 +663,7 @@ func _player_death() -> void:
 		popup("BACK INTO THE FIGHT!", player.pos + Vector2(-40, -40), Color("f0d050"))
 		# nepřátelé se jen odsunou kousek dál, žádné zranění ani sražení
 		for f in fighters:
-			if f != player and f.alive() and f.get("vel") != null:
+			if f.team == 1 and f.alive() and f.get("vel") != null:
 				f.vel = Vector2((1.0 if f.pos.x >= player.pos.x else -1.0) * 120.0, 0.0)
 
 
@@ -726,7 +782,7 @@ func _drowning() -> void:
 			continue
 		if f.z > 0.5 or f.flying or f.state == Fighter.S.RIDE or f.state == Fighter.S.JUMP:
 			continue
-		var is_player: bool = f == player
+		var is_player: bool = players.has(f)
 		if not is_player and f.state != Fighter.S.DOWN:
 			continue
 		if in_pool(f.pos):
@@ -800,7 +856,8 @@ func finish() -> void:
 	if finished:
 		return
 	finished = true
-	player.controls = false
+	for p in players:
+		p.controls = false
 	Sfx.play("win")
 	await get_tree().create_timer(2.0, false).timeout
 	completed.emit({"score": score, "kills": kills, "deaths": deaths, "time": time, "lives": lives,

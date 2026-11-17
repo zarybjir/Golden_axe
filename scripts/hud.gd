@@ -66,6 +66,15 @@ func _draw() -> void:
 			draw_texture(Art.t("rune"), r.position + Vector2(0.5, 1))
 		else:
 			draw_rect(r.grow(-1), Color(0.2, 0.25, 0.35, 0.6))
+	# Hráč 2 (vpravo nahoře, pod skóre)
+	var p2 = st.player2
+	if p2 != null and is_instance_valid(p2):
+		_bar(Rect2(368, 16, 104, 8), float(p2.hp) / float(p2.max_hp), Color("a83028"), Color("e06050"))
+		for i in 4:
+			var r2 := Rect2(424 + i * 12, 27, 10, 10)
+			draw_rect(r2, Color(0, 0, 0, 0.5))
+			if i < p2.runes:
+				draw_texture_rect(Art.t("rune"), r2, false)
 	# Svačinový box: kousky vzaté zpět bossům
 	_draw_lunchbox(st)
 	# Boss

@@ -13,6 +13,9 @@ Výchozí ovládání (gamepad / klávesnice) – změnit jde v menu Controls:
   Runová magie ..... Y / I      (spotřebuje všechny runy, zasáhne všechny nepřátele)
   Pauza ............ Start / Esc
 
+Dva hráči: druhý hráč se kdykoli během hry připojí tlačítkem Start na druhém
+ovladači (hraje za kováře v červeném). Životy jsou společné.
+
 Obtížnost (v hlavním menu):
   Easy ... neomezeně životů
   Hard ... 3 životy, odolnější nepřátelé

@@ -43,6 +43,8 @@ var run_time := 0.0
 var time_attack := false  # časovka: jedna úroveň proti stopkám
 var lunchbox: Array = []  # kousky svačiny, které si kovář už vzal zpět
 var story_layer: CanvasLayer = null
+var p1_pad := -1          # ovladač, kterým hraje hráč 1 (-1 = zatím jen klávesnice)
+var p2_pad := -1          # ovladač hráče 2 (-1 = hraje jen jeden hráč)
 var rebinding := ""        # akce, pro kterou se právě čeká na klávesu/tlačítko
 var rebind_t := 0.0
 
@@ -95,6 +97,8 @@ func _ready() -> void:
 		_ui_test()
 	if OS.get_cmdline_user_args().has("--storytest"):
 		_story_test()
+	if OS.get_cmdline_user_args().has("--cooptest"):
+		_coop_test()
 
 
 func _process(delta: float) -> void:
@@ -121,6 +125,8 @@ func show_title() -> void:
 	get_tree().paused = false
 	_clear_stage()
 	Sfx.play_music("title")
+	p2_pad = -1
+	Controls.reset_pads()
 	if title_bg == null:
 		title_bg = CanvasLayer.new()
 		title_bg.layer = -10
@@ -236,7 +242,10 @@ func _reset_controls() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if rebinding == "" or rebind_t > 0.0 or not event.is_pressed() or event.is_echo():
+	if rebinding == "":
+		_watch_pads(event)
+		return
+	if rebind_t > 0.0 or not event.is_pressed() or event.is_echo():
 		return
 	var a := rebinding
 	if event is InputEventKey:
@@ -249,6 +258,24 @@ func _input(event: InputEvent) -> void:
 	Sfx.play("select")
 	rebinding = ""
 	show_controls(Settings.ACTIONS.find(a))
+
+
+## Hráč 1 = ovladač, na kterém se hrálo jako první. Start na jiném ovladači
+## během hry připojí druhého hráče.
+func _watch_pads(event: InputEvent) -> void:
+	if not (event is InputEventJoypadButton) or not event.is_pressed():
+		return
+	var dev: int = event.device
+	var joining: bool = event.button_index == JOY_BUTTON_START and state == State.PLAYING \
+		and stage != null and stage.player2 == null and dev != p1_pad
+	if joining:
+		p2_pad = dev
+		Controls.assign_pads(p1_pad, dev)
+		stage.join_p2()
+		get_viewport().set_input_as_handled()
+		return
+	if p1_pad < 0 and (stage == null or stage.player2 == null):
+		p1_pad = dev
 
 
 func _focus_item(i: int) -> void:
@@ -334,6 +361,8 @@ func start_stage(index: int) -> void:
 	world.add_child(stage)
 	hud.stage = stage
 	state = State.PLAYING
+	if p2_pad >= 0:
+		stage.join_p2()   # druhý hráč pokračuje i v další úrovni
 	_set_touch(true)
 
 
@@ -848,6 +877,9 @@ func _take_shots() -> void:
 	stage.debug_jump_to_wave(3)
 	await _wait(3.0)
 	_save_shot("10c_kral_lichu")
+	stage.join_p2()
+	await _wait(0.8)
+	_save_shot("11_dva_hraci")
 	pause()
 	await _wait(0.4)
 	_save_shot("9_pauza")
@@ -963,6 +995,37 @@ func _story_test() -> void:
 	await _wait(2.5)
 	print("LUNCHBOX ", lunchbox)
 	print("STORYTEST done")
+	get_tree().quit(0)
+
+
+## Test: druhý hráč se připojí, chodí a bije, padne a vrátí se; pak další úroveň.
+func _coop_test() -> void:
+	await _wait(0.3)
+	start_stage(0)
+	await _wait(0.5)
+	p1_pad = 0
+	p2_pad = 1
+	Controls.assign_pads(0, 1)
+	stage.join_p2()
+	stage.debug_jump_to_wave(0)
+	await _wait(1.0)
+	var p2 = stage.player2
+	for i in 20:
+		Input.action_press("p2_right" if i % 4 < 2 else "p2_left")
+		Input.action_press("p2_attack")
+		await _wait(0.1)
+		Input.action_release("p2_attack")
+		await _wait(0.1)
+	Input.action_release("p2_right")
+	Input.action_release("p2_left")
+	print("P2 x=%.0f state=%d hp=%d  P1 x=%.0f  enemies target ok" % [p2.pos.x, p2.state, p2.hp, stage.player.pos.x])
+	p2.take_hit(999, 1, true, 0.0)
+	await _wait(3.0)
+	print("P2 after death state=%d hp=%d" % [p2.state, p2.hp])
+	start_stage(1)
+	await _wait(1.0)
+	print("next stage p2=", stage.player2 != null, " players=", stage.players.size())
+	print("COOPTEST done")
 	get_tree().quit(0)
 
 

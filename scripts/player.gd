@@ -13,9 +13,43 @@ var magic_power := 0
 var jump_vx := 0.0
 var air_attacked := false
 var controls := true
+var pfx := ""             # předpona akcí ("" = hráč 1, "p2_" = hráč 2)
+var respawn_t := 0
 var hold_t := 0           # jak dlouho je podržen úder (silný úder)
 const CHARGE_START := 16  # po tolika snímcích držení začne nabíjení
 const CHARGE_FULL := 26   # nabitý silný úder
+
+
+## Hráč 2: stejný kovář, jen v červeném (modré barvy oblečení se přebarví do ruda).
+const RED_SHADER := """
+shader_type canvas_item;
+vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+	float d = q.x - min(q.w, q.y);
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+vec3 hsv2rgb(vec3 c) {
+	vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+	return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+}
+void fragment() {
+	vec4 col = texture(TEXTURE, UV) * COLOR;
+	vec3 hsv = rgb2hsv(col.rgb);
+	float blue = smoothstep(0.08, 0.2, hsv.y) * (1.0 - smoothstep(0.08, 0.14, abs(hsv.x - 0.6)));
+	vec3 red = hsv2rgb(vec3(0.0, min(hsv.y * 1.1, 1.0), hsv.z * 0.95));
+	COLOR = vec4(mix(col.rgb, red, blue), col.a);
+}
+"""
+
+
+func make_red() -> void:
+	var sh := Shader.new()
+	sh.code = RED_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	material = m
 
 
 func _ready() -> void:
@@ -28,7 +62,7 @@ func _ready() -> void:
 
 func read_input() -> void:
 	for k in buf.keys():
-		if controls and Input.is_action_just_pressed(k):
+		if controls and Input.is_action_just_pressed(pfx + k):
 			buf[k] = BUF
 		elif buf[k] > 0 and stage.hitstop <= 0:
 			buf[k] -= 1
@@ -44,7 +78,7 @@ func _take(k: String) -> bool:
 func _dir() -> Vector2:
 	if not controls:
 		return Vector2.ZERO
-	return Vector2(Input.get_axis("left", "right"), Input.get_axis("up", "down"))
+	return Vector2(Input.get_axis(pfx + "left", pfx + "right"), Input.get_axis(pfx + "up", pfx + "down"))
 
 
 func tick() -> void:
@@ -56,7 +90,7 @@ func tick() -> void:
 		S.IDLE, S.WALK:
 			_neutral(dir)
 		S.ATTACK:
-			var held: bool = controls and Input.is_action_pressed("attack")
+			var held: bool = controls and Input.is_action_pressed(pfx + "attack")
 			hold_t = hold_t + 1 if held else 0
 			if move_name == "charge":
 				_charging(dir, held)

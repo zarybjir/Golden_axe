@@ -80,10 +80,11 @@ func _ready() -> void:
 
 
 ## Volá stage každý snímek po pohybu postav. prev_x = poloha hrdiny před pohybem.
-func step(prev_x: float) -> void:
-	var p = stage.player
-	_block_logs(p, prev_x)
-	_update_traps(p)
+func step(prevs: Dictionary) -> void:
+	for p in stage.players:
+		_block_logs(p, float(prevs.get(p, p.pos.x)))
+		_update_traps(p, true)
+	_update_traps(null, false)
 	_update_darts()
 	if rocks_on and not rock_tex.is_empty():
 		_update_rocks()
@@ -106,9 +107,12 @@ func _block_logs(p, prev_x: float) -> void:
 			p.vel.x = 0.0
 
 
-func _update_traps(p) -> void:
+## trigger = jen šlápnutí daného hrdiny na past; jinak běh časovačů (jednou za snímek).
+func _update_traps(p, trigger: bool) -> void:
 	for t in traps:
 		var pos: Vector2 = t[0]
+		if trigger != (int(t[1]) == 0):
+			continue
 		match int(t[1]):
 			0:
 				if p.alive() and p.z < 4.0 and p.drown_t == 0 \
@@ -140,7 +144,7 @@ func _update_darts() -> void:
 		dp.x += dir * DART_SPEED * Fighter.DT
 		d[0] = dp
 		var hit := false
-		for f in [stage.player]:   # šipka zraní jen hrdinu
+		for f in stage.players:   # šipka zraní jen hrdiny
 			if not f.alive() or f.state == Fighter.S.DOWN or f.drown_t > 0:
 				continue
 			if absf(f.pos.y - dp.y) < 9.0 and f.z < 20.0 and absf(f.pos.x - dp.x) < 10.0 and f.can_be_hit():
@@ -158,7 +162,7 @@ func _update_rocks() -> void:
 	rock_wait -= Fighter.DT
 	if rock_wait <= 0.0 and not stage.finished:
 		rock_wait = randf_range(1.0, 2.6)
-		var p = stage.player
+		var p = stage.players[randi() % stage.players.size()]
 		# občas přímo na hrdinu, jinak kamkoli na obrazovce
 		var x: float = p.pos.x + randf_range(-30.0, 30.0) if randf() < 0.45 else stage.cam_x + randf_range(-stage.HALF_W + 20.0, stage.HALF_W - 20.0)
 		var y: float = p.pos.y + randf_range(-8.0, 8.0) if randf() < 0.45 else randf_range(Fighter.Y_MIN + 4.0, Fighter.Y_MAX - 4.0)
@@ -195,10 +199,10 @@ func _rock_impact(r: Array) -> void:
 	stage.fx.dust(at, 12)
 	stage.fx.burst(at + Vector2(0, -6), Color("5a4a3a"), 10, 110.0, 0.5, 400.0, 3.0)
 	Sfx.play("heavy", 0.6)
-	var p = stage.player
-	if p.alive() and p.state != Fighter.S.DOWN and p.drown_t == 0 and p.z < 24.0 \
-			and absf(p.pos.x - at.x) < half + 6.0 and absf(p.pos.y - at.y) < 10.0 and p.can_be_hit():
-		p.take_hit(ROCK_DMG, 1 if p.pos.x >= at.x else -1, true, 0.0)
+	for p in stage.players:
+		if p.alive() and p.state != Fighter.S.DOWN and p.drown_t == 0 and p.z < 24.0 \
+				and absf(p.pos.x - at.x) < half + 6.0 and absf(p.pos.y - at.y) < 10.0 and p.can_be_hit():
+			p.take_hit(ROCK_DMG, 1 if p.pos.x >= at.x else -1, true, 0.0)
 
 
 func _draw_rock(r: Array) -> void:

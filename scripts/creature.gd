@@ -125,7 +125,7 @@ func _update_head() -> void:
 # ---------------------------------------------------------------- drak
 
 func _dragon_ai() -> void:
-	var p = stage.player
+	var p = stage.nearest_player(pos)
 	if attack != "":
 		_run_attack()
 		return
@@ -268,7 +268,7 @@ func _beast_tick() -> void:
 
 
 func _beast_ai() -> void:
-	var p = stage.player
+	var p = stage.nearest_player(pos)
 	head_target = Vector2(30, -40)
 	tail_swing = lerpf(tail_swing, 0.0, 0.1)
 	cooldown -= 1

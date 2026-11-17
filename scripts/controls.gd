@@ -47,3 +47,33 @@ func _add_axis(action_name: String, axis: int, dir: float) -> void:
 	e.axis = axis
 	e.axis_value = dir
 	InputMap.action_add_event(action_name, e)
+
+
+# ---------------------------------------------------------------- dva hráči
+
+const P_ACTIONS := ["attack", "jump", "dodge", "magic", "left", "right", "up", "down", "pause"]
+
+
+## Druhý hráč se připojil na ovladači p2_dev: jeho akce p2_* mají stejné rozložení
+## tlačítek jako hráč 1, ale jen z jeho ovladače. Hráč 1 pak bere ovladač p1_dev
+## (-1 = žádný ovladač, jen klávesnice).
+func assign_pads(p1_dev: int, p2_dev: int) -> void:
+	for a in P_ACTIONS:
+		var p2a: String = "p2_" + a
+		if not InputMap.has_action(p2a):
+			InputMap.add_action(p2a, 0.3)
+		InputMap.action_erase_events(p2a)
+		for e in InputMap.action_get_events(a):
+			if e is InputEventJoypadButton or e is InputEventJoypadMotion:
+				var c: InputEvent = e.duplicate()
+				c.device = p2_dev
+				InputMap.action_add_event(p2a, c)
+				e.device = p1_dev if p1_dev >= 0 else 99
+
+
+## Zpět na jednoho hráče: hráč 1 bere všechny ovladače.
+func reset_pads() -> void:
+	for a in P_ACTIONS:
+		for e in InputMap.action_get_events(a):
+			if e is InputEventJoypadButton or e is InputEventJoypadMotion:
+				e.device = -1

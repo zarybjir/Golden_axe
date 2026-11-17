@@ -220,7 +220,7 @@ var charge_pending := 0   # obr: za kolik snímků vyrazí do útoku po odhozen�
 ## Obr odstrčí hrdinu (odletí kus dál) a po krátké chvíli na něj vyrazí –
 ## hrdina má čas se zvednout z dosahu nebo uskočit.
 func _ogre_retaliate() -> void:
-	var p = stage.player
+	var p = stage.nearest_player(pos)
 	facing = 1 if p.pos.x > pos.x else -1
 	hurt_len = 10
 	set_state(S.HURT)
@@ -236,7 +236,7 @@ func tick() -> void:
 	if charge_pending > 0 and state != S.DOWN and state != S.DEAD:
 		charge_pending -= 1
 		if charge_pending == 0 and state != S.ATTACK:
-			var pl = stage.player
+			var pl = stage.nearest_player(pos)
 			facing = 1 if pl.pos.x > pos.x else -1
 			pos.y = move_toward(pos.y, pl.pos.y, 6.0)
 			start_move("ogre_charge")
@@ -307,7 +307,7 @@ func _maybe_elite() -> void:
 
 func _ai() -> void:
 	cooldown -= 1
-	var p = stage.player
+	var p = stage.nearest_player(pos)
 	if p == null:
 		return
 	if kind == "zombie" and z_phase == 1:
@@ -938,10 +938,11 @@ const BOULDER_HIT_Z := 36.0 # střed balvanu u hrdiny = výška jeho trupu
 func _throw_boulder() -> void:
 	# balvan vystřižený z videa – stejná velikost i vzhled jako v obrových rukou
 	var tex: Texture2D = load("res://art/fx/golem_boulder.png")
-	var x0 := minf(BOULDER_X0, absf(stage.player.pos.x - pos.x) - 40.0)
+	var tp = stage.nearest_player(pos)
+	var x0 := minf(BOULDER_X0, absf(tp.pos.x - pos.x) - 40.0)
 	var start := Vector2(pos.x + facing * maxf(x0, 30.0), pos.y)
 	# míří tam, kde hrdina stojí teď (ne kde stál při vyrvání balvanu)
-	var tgt: Vector2 = stage.player.pos + Vector2(randf_range(-6.0, 6.0), 0.0)
+	var tgt: Vector2 = tp.pos + Vector2(randf_range(-6.0, 6.0), 0.0)
 	var t := clampf(absf(tgt.x - start.x) / 340.0, 0.4, 0.8)   # doba letu k hrdinovi – plochý oblouk
 	var n := Node2D.new()
 	n.z_as_relative = false
@@ -964,12 +965,14 @@ func _boulder_step() -> void:
 		p += Vector2(float(b[4]), float(b[5])) * DT
 		b[1] = p
 		b[7] = float(b[7]) + DT
-		var pl = stage.player
 		var hit := false
-		if pl.alive() and pl.can_be_hit() and absf(pl.pos.x - p.x) < 16.0 and absf(pl.pos.y - p.y) < 10.0 \
-				and float(b[2]) - pl.z < 55.0 and float(b[2]) - pl.z > -10.0:
-			pl.take_hit(14, 1 if float(b[4]) > 0.0 else -1, true, 0.0)
-			hit = true
+		for pl in stage.players:
+			if hit:
+				break
+			if pl.alive() and pl.can_be_hit() and absf(pl.pos.x - p.x) < 16.0 and absf(pl.pos.y - p.y) < 10.0 \
+					and float(b[2]) - pl.z < 55.0 and float(b[2]) - pl.z > -10.0:
+				pl.take_hit(14, 1 if float(b[4]) > 0.0 else -1, true, 0.0)
+				hit = true
 		if hit or float(b[2]) <= 26.0:   # spodek balvanu dopadl na zem
 			stage.shake(4.0, 0.25)
 			stage.fx.burst(p + Vector2(0, -8), Color("5a4a3a"), 16, 150.0, 0.6, 420.0, 3.0)
@@ -1216,15 +1219,15 @@ func _bolt_step() -> void:
 		# ze špičky hole klesá šikmo dolů do výšky trupu
 		b[3] = move_toward(float(b[3]), BOLT_Z, 200.0 * DT)
 		b[4] = float(b[4]) + DT
-		var pl = stage.player
 		var hit := false
-		if pl.alive() and pl.can_be_hit() and pl.drown_t == 0 and absf(pl.pos.x - p.x) < 12.0 \
-				and absf(pl.pos.y - p.y) < 9.0 and pl.z < float(b[3]) - 10.0:
-			if kind == "lich_king":
-				pl.take_hit(18, dir, true, 0.0)   # silnější střela Krále lichů srazí k zemi
-			else:
-				pl.take_hit(int(10 * dmg_mult), dir, false, 70.0)
-			hit = true
+		for pl in stage.players:
+			if not hit and pl.alive() and pl.can_be_hit() and pl.drown_t == 0 and absf(pl.pos.x - p.x) < 12.0 \
+					and absf(pl.pos.y - p.y) < 9.0 and pl.z < float(b[3]) - 10.0:
+				if kind == "lich_king":
+					pl.take_hit(18, dir, true, 0.0)   # silnější střela Krále lichů srazí k zemi
+				else:
+					pl.take_hit(int(10 * dmg_mult), dir, false, 70.0)
+				hit = true
 		if hit or absf(p.x - stage.cam_x) > stage.HALF_W + 60.0:
 			if hit:
 				stage.fx.burst(Vector2(p.x, p.y - float(b[3])), Color("8aff60"), 16, 120.0, 0.45, 60.0, 2.5)
@@ -1365,7 +1368,7 @@ func _necro_summon_step() -> void:
 				spots.append([fp, f[1]])
 		# jinak vyvolá zombie ze země kolem hrdiny
 		while spots.size() < 2:
-			var pl = stage.player
+			var pl = stage.nearest_player(pos)
 			var sx: float = pl.pos.x + randf_range(70.0, 140.0) * (1.0 if randf() < 0.5 else -1.0)
 			sx = clampf(sx, stage.cam_x - stage.HALF_W + 30.0, stage.cam_x + stage.HALF_W - 30.0)
 			spots.append([Vector2(sx, randf_range(Y_MIN + 6.0, Y_MAX - 6.0)), "zombie"])
