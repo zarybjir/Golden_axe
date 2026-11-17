@@ -836,7 +836,7 @@ func _golem_throw_step() -> void:
 
 
 const BOULDER_G := 600.0    # gravitace balvanu
-const BOULDER_Z0 := 105.0   # výška balvanu nad hlavou obra při hodu
+const BOULDER_Z0 := 130.0   # výška balvanu nad hlavou obra při hodu
 const BOULDER_HIT_Z := 30.0 # výška trupu hrdiny – sem balvan míří
 
 

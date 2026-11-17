@@ -42,13 +42,13 @@ const STAGES := [
 		{"x": 420.0, "enemies": [["native", 1], ["native", -1], ["spider", 1]]},
 		{"x": 860.0, "enemies": [["vine", 1], ["native", -1], ["spider", -1]]},
 		{"x": 1300.0, "enemies": [["spider", 1], ["spider", -1], ["native", 1], ["vine", -1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["vine", -1], ["native", 1]], "boss": true},
+		{"x": 1760.0, "enemies": [["dragon", 1], ["vine", -1], ["native", 1]], "boss": true},
 	]},
-	{"name": "The Mountain Pass", "biome": "mountain", "rocks": true, "waves": [
+	{"name": "The Mountain Pass", "biome": "mountain", "rocks": true, "gate": true, "waves": [
 		{"x": 420.0, "enemies": [["chamois", 1], ["skeleton", -1], ["ghoul", 1]]},
 		{"x": 860.0, "enemies": [["rider", 1], ["chamois", -1], ["skeleton", 1]]},
-		{"x": 1300.0, "enemies": [["golem", 1], ["skeleton", -1], ["ghoul", -1]]},
-		{"x": 1760.0, "enemies": [["dragon", 1], ["ghoul", -1]], "boss": true},
+		{"x": 1300.0, "enemies": [["chamois", 1], ["skeleton", -1], ["ghoul", -1], ["chamois", -1]]},
+		{"x": 1760.0, "enemies": [["golem", 1], ["skeleton", -1], ["ghoul", 1]], "boss": true},
 	]},
 	{"name": "The Dark Palace", "biome": "castle", "waves": [
 		{"x": 420.0, "enemies": [["lich", 1], ["skeleton", -1], ["ghoul", 1]]},
@@ -747,7 +747,8 @@ func finish() -> void:
 	player.controls = false
 	Sfx.play("win")
 	await get_tree().create_timer(2.0, false).timeout
-	completed.emit({"score": score, "kills": kills, "deaths": deaths, "time": time, "lives": lives})
+	completed.emit({"score": score, "kills": kills, "deaths": deaths, "time": time, "lives": lives,
+		"gate": STAGES[stage_index].get("gate", false)})
 
 
 # ---------------------------------------------------------------- kreslení země

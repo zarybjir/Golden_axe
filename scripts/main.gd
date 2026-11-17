@@ -7,6 +7,7 @@ const BackgroundScript := preload("res://scripts/background.gd")
 const Fighter := preload("res://scripts/fighter.gd")
 const TouchScript := preload("res://scripts/touch.gd")
 const TitleScript := preload("res://scripts/title.gd")
+const GateScript := preload("res://scripts/gate_scene.gd")
 
 enum State { TITLE, PLAYING, PAUSED, RESULTS }
 
@@ -21,6 +22,7 @@ var title_bg: CanvasLayer = null
 var ui_theme: Theme
 var touch: TouchScript = null
 var lives := -1            # zbývající životy na celou hru (-1 = neomezeně)
+var gate_layer: CanvasLayer = null   # scéna vstupu do paláce
 var rebinding := ""        # akce, pro kterou se právě čeká na klávesu/tlačítko
 var rebind_t := 0.0
 
@@ -254,6 +256,29 @@ func _on_completed(stats: Dictionary) -> void:
 	_set_touch(false)
 	state = State.RESULTS
 	get_tree().paused = true
+	if stats.get("gate", false) and stage != null:
+		# po kamenném obrovi: hrdina vejde do brány temného paláce
+		_close_gate()
+		gate_layer = CanvasLayer.new()
+		gate_layer.layer = 8
+		var g := GateScript.new()
+		var pl = stage.player
+		if pl.anim_tex.has("walk"):
+			g.setup(pl.anim_tex["walk"], pl.anim_set["walk"]["offsets"], pl.anim_k)
+		g.finished.connect(_show_results.bind(stats))
+		gate_layer.add_child(g)
+		add_child(gate_layer)
+		return
+	_show_results(stats)
+
+
+func _close_gate() -> void:
+	if gate_layer != null and is_instance_valid(gate_layer):
+		gate_layer.queue_free()
+	gate_layer = null
+
+
+func _show_results(stats: Dictionary) -> void:
 	var secs := int(stats["time"])
 	lives = int(stats.get("lives", lives))
 	var text := "Score: %d\nEnemies defeated: %d\nTime: %d:%02d\nDeaths: %d" % [
@@ -293,6 +318,7 @@ func quit_game() -> void:
 
 
 func _clear_stage() -> void:
+	_close_gate()
 	hud.stage = null
 	if stage != null and is_instance_valid(stage):
 		stage.queue_free()
@@ -448,6 +474,7 @@ func _smoke(delta: float) -> void:
 		7:
 			_mash()
 			if smoke_time > 17.0:
+				start_stage(2)   # drak je boss džungle
 				stage.debug_jump_to_wave(3)
 				smoke_step = 8
 		8:
@@ -614,7 +641,7 @@ func _take_shots() -> void:
 		await _tap("attack")
 		await _wait(0.5)
 		_save_shot("4b_jizda_utok")
-	stage.debug_jump_to_wave(2)
+	stage.debug_jump_to_wave(3)
 	await _wait(3.0)
 	_save_shot("5_obr")
 	for f in stage.fighters:
@@ -629,6 +656,12 @@ func _take_shots() -> void:
 			await _wait(0.9)
 			_save_shot("5b_obr_hod")
 			break
+	# po poražení obra: vstup do brány paláce
+	stage.finish()
+	await _wait(2.4 + 3.0)
+	_save_shot("5c_brana")
+	await _wait(3.0)
+	start_stage(2)   # drak je boss džungle
 	stage.debug_jump_to_wave(3)
 	await _wait(3.6)
 	_save_shot("6_drak")
