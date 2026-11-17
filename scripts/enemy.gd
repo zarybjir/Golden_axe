@@ -257,7 +257,7 @@ func _ai() -> void:
 	if kind == "golem":
 		throw_cool -= 1
 		var ddx: float = absf(p.pos.x - pos.x)
-		if throw_cool <= 0 and ddx > 110.0 and ddx < 330.0 and p.alive():
+		if throw_cool <= 0 and ddx > 170.0 and ddx < 380.0 and p.alive():
 			facing = 1 if p.pos.x > pos.x else -1
 			throw_target = p.pos
 			start_move("golem_throw")
@@ -836,13 +836,16 @@ func _golem_throw_step() -> void:
 
 
 const BOULDER_G := 600.0    # gravitace balvanu
-const BOULDER_Z0 := 130.0   # výška balvanu nad hlavou obra při hodu
-const BOULDER_HIT_Z := 30.0 # výška trupu hrdiny – sem balvan míří
+const BOULDER_X0 := 143.0   # kde obr balvan pustí (podle videa): před sebou
+const BOULDER_Z0 := 188.0   # a vysoko nad hlavou (střed balvanu)
+const BOULDER_HIT_Z := 36.0 # střed balvanu u hrdiny = výška jeho trupu
 
 
 func _throw_boulder() -> void:
-	var tex: Texture2D = load("res://art/props/rock_%d.png" % (1 + randi() % 2))
-	var start := Vector2(pos.x + facing * 30.0, pos.y)
+	# balvan vystřižený z videa – stejná velikost i vzhled jako v obrových rukou
+	var tex: Texture2D = load("res://art/fx/golem_boulder.png")
+	var x0 := minf(BOULDER_X0, absf(stage.player.pos.x - pos.x) - 40.0)
+	var start := Vector2(pos.x + facing * maxf(x0, 30.0), pos.y)
 	# míří tam, kde hrdina stojí teď (ne kde stál při vyrvání balvanu)
 	var tgt: Vector2 = stage.player.pos + Vector2(randf_range(-6.0, 6.0), 0.0)
 	var t := clampf(absf(tgt.x - start.x) / 340.0, 0.4, 0.8)   # doba letu k hrdinovi – plochý oblouk
@@ -873,7 +876,7 @@ func _boulder_step() -> void:
 				and float(b[2]) - pl.z < 55.0 and float(b[2]) - pl.z > -10.0:
 			pl.take_hit(14, 1 if float(b[4]) > 0.0 else -1, true, 0.0)
 			hit = true
-		if hit or float(b[2]) <= 0.0:
+		if hit or float(b[2]) <= 26.0:   # spodek balvanu dopadl na zem
 			stage.shake(4.0, 0.25)
 			stage.fx.burst(p + Vector2(0, -8), Color("5a4a3a"), 16, 150.0, 0.6, 420.0, 3.0)
 			stage.fx.dust(p, 10)
@@ -889,14 +892,14 @@ func _draw_boulder(b: Array) -> void:
 	var n: Node2D = b[0]
 	var tex: Texture2D = b[6]
 	var p: Vector2 = b[1]
-	var w := tex.get_width() / 3.0 * 0.8
-	var h := tex.get_height() / 3.0 * 0.8
+	var w := tex.get_width() / 3.0
+	var h := tex.get_height() / 3.0
 	var pts := PackedVector2Array()
 	for i in 12:
 		var an := TAU * i / 12.0
 		pts.append(Vector2(p.x + cos(an) * w * 0.45, p.y + sin(an) * 3.5))
 	n.draw_colored_polygon(pts, Color(0, 0, 0, 0.3))
-	n.draw_set_transform(Vector2(p.x, p.y - float(b[2]) - h * 0.5), float(b[7]) * 5.0 * signf(float(b[4])), Vector2.ONE)
+	n.draw_set_transform(Vector2(p.x, p.y - float(b[2])), float(b[7]) * 3.0 * signf(float(b[4])), Vector2.ONE)
 	n.draw_texture_rect(tex, Rect2(-w * 0.5, -h * 0.5, w, h), false, Color(0.9, 0.88, 0.86))
 
 
