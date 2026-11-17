@@ -836,7 +836,8 @@ func _golem_throw_step() -> void:
 
 
 const BOULDER_G := 600.0    # gravitace balvanu
-const BOULDER_Z0 := 120.0   # výška balvanu nad hlavou obra při hodu
+const BOULDER_Z0 := 105.0   # výška balvanu nad hlavou obra při hodu
+const BOULDER_HIT_Z := 30.0 # výška trupu hrdiny – sem balvan míří
 
 
 func _throw_boulder() -> void:
@@ -844,13 +845,13 @@ func _throw_boulder() -> void:
 	var start := Vector2(pos.x + facing * 30.0, pos.y)
 	# míří tam, kde hrdina stojí teď (ne kde stál při vyrvání balvanu)
 	var tgt: Vector2 = stage.player.pos + Vector2(randf_range(-6.0, 6.0), 0.0)
-	var t := clampf(absf(tgt.x - start.x) / 300.0, 0.45, 0.9)   # doba letu – plochý oblouk, celý na obrazovce
+	var t := clampf(absf(tgt.x - start.x) / 340.0, 0.4, 0.8)   # doba letu k hrdinovi – plochý oblouk
 	var n := Node2D.new()
 	n.z_as_relative = false
 	n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var b := [n, start, BOULDER_Z0, 0.0, (tgt.x - start.x) / t, (tgt.y - start.y) / t, tex, 0.0]
-	# z = výška nad zemí; vz tak, aby balvan dopadl přesně v čase t
-	b[3] = (0.5 * BOULDER_G * t * t - BOULDER_Z0) / t
+	# z = výška nad zemí; vz tak, aby balvan byl u hrdiny ve výšce jeho trupu
+	b[3] = (0.5 * BOULDER_G * t * t - (BOULDER_Z0 - BOULDER_HIT_Z)) / t
 	n.draw.connect(_draw_boulder.bind(b))
 	stage.add_child(n)
 	boulders.append(b)
@@ -869,7 +870,7 @@ func _boulder_step() -> void:
 		var pl = stage.player
 		var hit := false
 		if pl.alive() and pl.can_be_hit() and absf(pl.pos.x - p.x) < 16.0 and absf(pl.pos.y - p.y) < 10.0 \
-				and absf(pl.z - float(b[2])) < 40.0:
+				and float(b[2]) - pl.z < 55.0 and float(b[2]) - pl.z > -10.0:
 			pl.take_hit(14, 1 if float(b[4]) > 0.0 else -1, true, 0.0)
 			hit = true
 		if hit or float(b[2]) <= 0.0:
@@ -888,8 +889,8 @@ func _draw_boulder(b: Array) -> void:
 	var n: Node2D = b[0]
 	var tex: Texture2D = b[6]
 	var p: Vector2 = b[1]
-	var w := tex.get_width() / 3.0 * 1.05
-	var h := tex.get_height() / 3.0 * 1.05
+	var w := tex.get_width() / 3.0 * 0.8
+	var h := tex.get_height() / 3.0 * 0.8
 	var pts := PackedVector2Array()
 	for i in 12:
 		var an := TAU * i / 12.0
