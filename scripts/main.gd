@@ -406,7 +406,9 @@ func _take_shots() -> void:
 			break
 	start_stage(1)
 	stage.debug_jump_to_wave(0)
-	await _wait(2.6)
+	await _wait(0.75)
+	_save_shot("2b0_vylezani")
+	await _wait(1.85)
 	_save_shot("2b_hrbitov")
 	start_stage(2)
 	stage.debug_jump_to_wave(0)

@@ -56,6 +56,10 @@ def main():
         for i, c in enumerate(parts(rpath, 5)):
             hgt = [26, 34, 22, 30, 38][i]
             save(c, hgt * RES / c.shape[0], f"{ROOT}/art/props/rock_{i}.png")
+    dpath = f"{ROOT}/art/source/grim_dirt.png"
+    if os.path.exists(dpath):
+        for i, c in enumerate(parts(dpath, 4)):
+            save(c, 58 * RES / c.shape[1], f"{ROOT}/art/props/dirt_{i}.png")
     idle, roar = parts(f"{ROOT}/art/source/grim_dragon.png", 2)
     k = DRAGON_H * RES / idle.shape[0]   # obě pózy ve stejném měřítku
     meta = {}

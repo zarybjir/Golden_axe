@@ -28,10 +28,10 @@ const STAGES := [
 		{"x": 1760.0, "enemies": [["ogre", 1], ["ghoul", -1], ["ghoul", 1]], "boss": true},
 	]},
 	{"name": "Hřbitov", "biome": "graveyard", "waves": [
-		{"x": 420.0, "enemies": [["skeleton", 1], ["skeleton", -1]]},
-		{"x": 860.0, "enemies": [["skeleton", 1], ["bat", -1], ["skeleton", -1], ["bat", 1]]},
-		{"x": 1300.0, "enemies": [["rider", 1], ["skeleton", -1], ["skeleton", 1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["skeleton", 1]], "boss": true},
+		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", -1]]},
+		{"x": 860.0, "enemies": [["skeleton", 1], ["bat", -1], ["ghoul", -1], ["bat", 1]]},
+		{"x": 1300.0, "enemies": [["rider", 1], ["ghoul", -1], ["skeleton", 1], ["ghoul", 1]]},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["skeleton", 1], ["ghoul", -1]], "boss": true},
 	]},
 	{"name": "Džungle", "biome": "jungle",
 		"logs": [600.0, 1090.0, 1540.0],
@@ -57,6 +57,8 @@ var ground_tex: Texture2D = null
 var water_tex: Array = []
 var hazards: Node2D = null
 var corpse_tex: Array = []
+var dirt_tex: Array = []    # rozhrabaná hlína (hřbitov – mrtví lezou ze země)
+var mounds: Array = []      # [pozice, textura, čas]
 
 var player: PlayerScript
 var fighters: Array = []
@@ -95,6 +97,11 @@ func _ready() -> void:
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		for wi in int(ParallaxScript.BgData.OBJS.get(biome + "_water", 0)):
 			water_tex.append(load("res://art/bg/%s/water_%d.png" % [biome, wi]))
+		if biome == "graveyard":
+			for di in 4:
+				var dp := "res://art/props/dirt_%d.png" % di
+				if ResourceLoader.exists(dp):
+					dirt_tex.append(load(dp))
 		for ci in int(ParallaxScript.BgData.OBJS.get(biome + "_corpse", 0)):
 			corpse_tex.append(load("res://art/bg/%s/corpse_%d.png" % [biome, ci]))
 		if st.has("logs") or st.has("traps") or st.get("rocks", false):
@@ -237,7 +244,16 @@ func _spawn_wave(w: Dictionary) -> void:
 				boss = cr
 				Sfx.play("roar", 0.7)
 		else:
+			var rise: bool = not dirt_tex.is_empty() and (kind == "skeleton" or kind == "ghoul")
+			if rise:
+				# vyleze ze země někde na obrazovce, ne moc blízko hrdiny
+				for tries in 12:
+					at = Vector2(cam_x + randf_range(-HALF_W + 40.0, HALF_W - 40.0), randf_range(Fighter.Y_MIN + 6.0, Fighter.Y_MAX - 6.0))
+					if absf(at.x - player.pos.x) > 70.0:
+						break
 			var en := _make_enemy(kind, at, side)
+			if rise:
+				en.start_rise(dirt_tex[randi() % dirt_tex.size()])
 			if kind == "ogre":
 				boss = en
 				Sfx.play("roar")
@@ -610,6 +626,26 @@ func _drowning() -> void:
 			Sfx.play("land", 0.5)
 
 
+## Po vylezlém mrtvém zůstane na zemi rozhrabaná hlína (časem zmizí).
+func leave_mound(p: Vector2, tex: Texture2D) -> void:
+	if tex != null:
+		mounds.append([p, tex, time])
+
+
+func _draw_mounds() -> void:
+	for m in mounds.duplicate():
+		var age: float = time - float(m[2])
+		if age > 14.0:
+			mounds.erase(m)
+			continue
+		var tex: Texture2D = m[1]
+		var p: Vector2 = m[0]
+		var w := tex.get_width() / 3.0
+		var h := tex.get_height() / 3.0 * 0.8
+		var a := clampf((14.0 - age) / 3.0, 0.0, 1.0)
+		draw_texture_rect(tex, Rect2(p.x - w * 0.5, p.y - h + 4.0, w, h), false, Color(0.8, 0.78, 0.75, a))
+
+
 ## Rozkládající se ostatky ležící na cestě – ztlumené, aby moc nevystupovaly.
 func _draw_corpses() -> void:
 	if corpse_tex.is_empty():
@@ -676,6 +712,7 @@ func _draw() -> void:
 	if retro:
 		_draw_puddles()
 		_draw_corpses()
+		_draw_mounds()
 	if retro:
 		# Hloubka: v dálce mlha, u diváka stín
 		var left := cam_x - HALF_W - 4.0

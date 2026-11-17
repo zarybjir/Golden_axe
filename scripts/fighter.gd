@@ -308,7 +308,7 @@ func _draw() -> void:
 	if invuln > 0 and (state == S.IDLE or state == S.WALK) and (invuln / 3) % 2 == 0:
 		return
 	# Stín na zemi
-	if state != S.RIDE and drown_t == 0:
+	if state != S.RIDE and drown_t == 0 and sink == 0.0:
 		var sw := 11.0 * body_scale
 		_ellipse(Vector2(0, z), sw, 3.0 * body_scale, Color(0, 0, 0, 0.3))
 
@@ -423,7 +423,7 @@ func _draw_anim(mod: Color) -> void:
 	var tex: Texture2D = arr[i]
 	# ležící postava: široký stín pod celým tělem a přitisknutí k zemi (jinak "visí")
 	var drop := 0.0
-	if (state == S.DOWN or state == S.DEAD or state == S.GETUP) and drown_t == 0:
+	if (state == S.DOWN or state == S.DEAD or state == S.GETUP) and drown_t == 0 and sink == 0.0:
 		var tw := float(tex.get_width())
 		var th := float(tex.get_height())
 		var lie := clampf((tw - th) / th, 0.0, 1.0)
@@ -432,7 +432,7 @@ func _draw_anim(mod: Color) -> void:
 			var cx := (off.x + tw * 0.5) * anim_k * facing
 			_ellipse(Vector2(cx, 1.0), tw * anim_k * 0.46, 6.0, Color(0, 0, 0, 0.38 * lie))
 	draw_set_transform(Vector2(0.0, drop), float(pick[2]) * facing, Vector2(facing * anim_k, anim_k))
-	if drown_t > 0:
+	if drown_t > 0 or sink > 0.0:
 		# hladina je v místních souřadnicích na y = -sink; co je pod ní, nekreslit
 		var cut := (-sink + 2.0) / anim_k - off.y
 		var hv := clampf(cut, 0.0, float(tex.get_height()))

@@ -71,8 +71,50 @@ func _ready() -> void:
 	slot = randf_range(-40.0, 40.0)
 
 
+## Vylézání ze země (hřbitov): postava se zvedá z hrobu, kolem se hrne hlína.
+const RISE_LEN := 80
+var rise_t := 0
+var rise_dirt: Texture2D = null
+
+
+func start_rise(dirt: Texture2D) -> void:
+	rise_t = RISE_LEN
+	rise_dirt = dirt
+	sink = 130.0
+	set_state(S.IDLE)
+
+
+func can_be_hit() -> bool:
+	if rise_t > 0:
+		return false
+	return super.can_be_hit()
+
+
+func _rise_step() -> void:
+	rise_t -= 1
+	var k := float(rise_t) / float(RISE_LEN)
+	# nejdřív se jen hrne hlína, pak se postava trhaně vysouvá ven
+	var up := clampf((1.0 - k - 0.2) / 0.8, 0.0, 1.0)
+	sink = 130.0 * (1.0 - up * up * (3.0 - 2.0 * up)) + (sin(float(rise_t) * 1.7) * 2.0 if rise_t > 6 else 0.0)
+	sink = maxf(sink, 0.0)
+	if rise_t % 4 == 0 and stage != null:
+		stage.fx.burst(Vector2(pos.x + randf_range(-14, 14), pos.y - 3.0), Color("2e241a"), 3, 70.0, 0.5, 380.0, 2.5)
+	if rise_t % 9 == 0 and stage != null:
+		stage.fx.dust(Vector2(pos.x + randf_range(-10, 10), pos.y), 3)
+	if rise_t == RISE_LEN - 1:
+		Sfx.play("land", 0.5)
+	if rise_t <= 0:
+		sink = 0.0
+		if stage != null and stage.has_method("leave_mound"):
+			stage.leave_mound(pos, rise_dirt)
+
+
 func tick() -> void:
 	physics_step()
+	if rise_t > 0:
+		_rise_step()
+		position = Vector2(roundf(pos.x), roundf(pos.y - z + sink))
+		return
 	if drown_t > 0 and state != S.DEAD:
 		return
 	if state == S.DEAD:
@@ -162,6 +204,13 @@ func _release() -> void:
 
 
 func _draw_extra() -> void:
+	if rise_t > 0 and rise_dirt != null:
+		# hlína před tělem: zvedá se, třese a hrne kolem vylézající postavy
+		var k := 1.0 - float(rise_t) / float(RISE_LEN)
+		var w := rise_dirt.get_width() / 3.0
+		var h := rise_dirt.get_height() / 3.0 * clampf(0.4 + k * 1.2, 0.4, 1.0)
+		var jx := sin(float(rise_t) * 2.3) * 1.5
+		draw_texture_rect(rise_dirt, Rect2(-w * 0.5 + jx, -sink - h + 4.0, w, h), false, Color(0.85, 0.83, 0.8))
 	if SHOW_HINTS and telegraph and state == S.ATTACK:
 		var y := -44.0 * body_scale
 		if sprite_tex != null:
