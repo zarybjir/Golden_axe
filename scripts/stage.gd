@@ -496,9 +496,10 @@ func _player_death() -> void:
 		player.set_state(Fighter.S.IDLE)
 		player.invuln = 120
 		popup("ZNOVU DO BOJE!", player.pos + Vector2(-30, -40), Color("f0d050"))
+		# nepřátelé se jen odsunou kousek dál, žádné zranění ani sražení
 		for f in fighters:
-			if f != player and f.alive():
-				f.take_hit(0, 1 if f.pos.x >= player.pos.x else -1, true, 0.0)
+			if f != player and f.alive() and f.get("vel") != null:
+				f.vel = Vector2((1.0 if f.pos.x >= player.pos.x else -1.0) * 120.0, 0.0)
 
 
 ## Hluboké bažinaté tůně na cestě (malované). Kdo do nich vstoupí, utopí se.
