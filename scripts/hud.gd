@@ -38,7 +38,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	var st = stage
-	score_label.text = "Score %d" % st.score
+	score_label.text = "Score %d" % st.score if not st.time_attack else Settings.time_text(st.time)
 	name_label.text = "MIREK" if st.lives < 0 else "MIREK   x%d" % st.lives
 	go_label.visible = false   # bez šipky "VPŘED" – hra nevede za ruku
 	boss_label.visible = st.boss != null and is_instance_valid(st.boss)

@@ -17,6 +17,12 @@ const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY
 	JOY_BUTTON_DPAD_LEFT: "D-pad left", JOY_BUTTON_DPAD_RIGHT: "D-pad right", JOY_BUTTON_GUIDE: "Guide"}
 
 var difficulty := "easy"
+# postup a rekordy (žebříček v tomto zařízení)
+var unlocked_hell := false      # dohráním hry na Hard
+var unlocked_time := false      # dohráním hry na jakoukoli obtížnost
+var best_score := {}            # index úrovně -> [skóre, obtížnost]
+var best_time := {}             # index úrovně -> nejlepší čas v časovce (s)
+var top_runs: Array = []        # [[skóre, obtížnost, čas], ...] nejlepší průchody celou hrou
 var keys := {}       # akce -> fyzický kód klávesy (přemapováno)
 var pads := {}       # akce -> tlačítko ovladače (přemapováno)
 var _defaults := {}  # akce -> původní události (pro obnovení výchozího)
@@ -31,6 +37,13 @@ func _ready() -> void:
 		difficulty = str(cf.get_value("game", "difficulty", "easy"))
 		if not DIFFS.has(difficulty):
 			difficulty = "easy"
+		unlocked_hell = bool(cf.get_value("progress", "hell", false))
+		unlocked_time = bool(cf.get_value("progress", "time", false))
+		best_score = cf.get_value("records", "best_score", {})
+		best_time = cf.get_value("records", "best_time", {})
+		top_runs = cf.get_value("records", "top_runs", [])
+		if difficulty == "hell" and not unlocked_hell:
+			difficulty = "hard"
 		for a in ACTIONS:
 			if cf.has_section_key("keys", a):
 				keys[a] = int(cf.get_value("keys", a))
@@ -42,6 +55,11 @@ func _ready() -> void:
 func save() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value("game", "difficulty", difficulty)
+	cf.set_value("progress", "hell", unlocked_hell)
+	cf.set_value("progress", "time", unlocked_time)
+	cf.set_value("records", "best_score", best_score)
+	cf.set_value("records", "best_time", best_time)
+	cf.set_value("records", "top_runs", top_runs)
 	for a in keys:
 		cf.set_value("keys", a, keys[a])
 	for a in pads:
@@ -53,7 +71,49 @@ func save() -> void:
 
 func cycle_difficulty() -> void:
 	difficulty = DIFFS[(DIFFS.find(difficulty) + 1) % DIFFS.size()]
+	if difficulty == "hell" and not unlocked_hell:
+		difficulty = "easy"
 	save()
+
+
+# ---------------------------------------------------------------- rekordy
+
+## Zapíše výsledek úrovně. Vrací text o nových rekordech (nebo "").
+func record_stage(stage_i: int, score: int, secs: float, time_attack: bool) -> String:
+	var out := ""
+	var prev: Array = best_score.get(stage_i, [0, ""])
+	if score > int(prev[0]):
+		best_score[stage_i] = [score, difficulty]
+		out += "New best score!\n"
+	if time_attack:
+		var bt: float = best_time.get(stage_i, 0.0)
+		if bt <= 0.0 or secs < bt:
+			best_time[stage_i] = secs
+			out += "New best time!\n"
+	save()
+	return out
+
+
+## Dohraná celá hra: zapíše průchod do žebříčku a odemkne Hell / časovku.
+func record_run(score: int, secs: float) -> String:
+	var out := ""
+	if not unlocked_time:
+		unlocked_time = true
+		out += "TIME ATTACK unlocked!\n"
+	if (difficulty == "hard" or difficulty == "hell") and not unlocked_hell:
+		unlocked_hell = true
+		out += "HELL difficulty unlocked!\n"
+	top_runs.append([score, difficulty, secs])
+	top_runs.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]))
+	if top_runs.size() > 5:
+		top_runs.resize(5)
+	save()
+	return out
+
+
+static func time_text(secs: float) -> String:
+	var s := int(secs)
+	return "%d:%02d.%d" % [s / 60, s % 60, int(fmod(secs, 1.0) * 10.0)]
 
 
 ## Počet životů na celou hru (-1 = neomezeně).

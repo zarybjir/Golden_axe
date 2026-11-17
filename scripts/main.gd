@@ -23,6 +23,10 @@ var ui_theme: Theme
 var touch: TouchScript = null
 var lives := -1            # zbývající životy na celou hru (-1 = neomezeně)
 var gate_layer: CanvasLayer = null   # scéna vstupu do paláce
+var run_active := false   # hraje se celá hra od první úrovně (do žebříčku průchodů)
+var run_score := 0
+var run_time := 0.0
+var time_attack := false  # časovka: jedna úroveň proti stopkám
 var rebinding := ""        # akce, pro kterou se právě čeká na klávesu/tlačítko
 var rebind_t := 0.0
 
@@ -71,6 +75,8 @@ func _ready() -> void:
 		_zombie_test()
 	if OS.get_cmdline_user_args().has("--heavytest"):
 		_heavy_test()
+	if OS.get_cmdline_user_args().has("--uitest"):
+		_ui_test()
 
 
 func _process(delta: float) -> void:
@@ -106,9 +112,53 @@ func show_title() -> void:
 		["Play", start_game],
 		["Difficulty: %s" % Settings.DIFF_NAMES[Settings.difficulty], _cycle_difficulty],
 		["Stage select", show_stage_select],
+		["Time Attack" if Settings.unlocked_time else "Time Attack (locked)", show_time_attack],
+		["Records", show_records],
 		["Controls", show_controls],
 		["Quit", quit_game],
 	], _controls_hint(), false, 1)
+
+
+# ---------------------------------------------------------------- časovka a rekordy
+
+func show_time_attack() -> void:
+	if not Settings.unlocked_time:
+		_show_menu("Time Attack", "Finish the whole game to unlock Time Attack.", [["Back", show_title]], "", false)
+		return
+	var items: Array = []
+	for i in StageScript.STAGES.size():
+		var bt: float = Settings.best_time.get(i, 0.0)
+		var rec := "   best %s" % Settings.time_text(bt) if bt > 0.0 else ""
+		items.append(["%d. %s%s" % [i + 1, StageScript.STAGES[i]["name"], rec], _start_time_attack.bind(i)])
+	items.append(["Back", show_title])
+	_show_menu("Time Attack", "Clear a stage as fast as you can.", items, "", false)
+
+
+func _start_time_attack(i: int) -> void:
+	time_attack = true
+	run_active = false
+	lives = -1
+	start_stage(i)
+
+
+func show_records() -> void:
+	var lines: Array = []
+	for i in StageScript.STAGES.size():
+		var bs: Array = Settings.best_score.get(i, [0, ""])
+		var bt: float = Settings.best_time.get(i, 0.0)
+		var l := "%s:  " % StageScript.STAGES[i]["name"]
+		l += ("%d (%s)" % [int(bs[0]), Settings.DIFF_NAMES.get(bs[1], "-")]) if int(bs[0]) > 0 else "-"
+		if bt > 0.0:
+			l += "   time %s" % Settings.time_text(bt)
+		lines.append(l)
+	lines.append("")
+	lines.append("Best full runs:")
+	if Settings.top_runs.is_empty():
+		lines.append("none yet")
+	for k in Settings.top_runs.size():
+		var r: Array = Settings.top_runs[k]
+		lines.append("%d.  %d  (%s, %s)" % [k + 1, int(r[0]), Settings.DIFF_NAMES.get(r[1], "-"), Settings.time_text(float(r[2]))])
+	_show_menu("Records", "\n".join(lines), [["Back", show_title]], "", false, 2)
 
 
 func _cycle_difficulty() -> void:
@@ -127,7 +177,7 @@ func _difficulty_text() -> String:
 			return "Hard: 3 lives, tougher monsters."
 		"hell":
 			return "Hell: one life, monsters tougher and stronger."
-	return "Easy: unlimited lives."
+	return "Easy: unlimited lives." + ("" if Settings.unlocked_hell else "  (Finish on Hard to unlock Hell.)")
 
 
 func _controls_hint() -> String:
@@ -200,11 +250,17 @@ func show_stage_select() -> void:
 
 
 func _start_from(i: int) -> void:
+	time_attack = false
+	run_active = false
 	lives = Settings.lives()
 	start_stage(i)
 
 
 func start_game() -> void:
+	time_attack = false
+	run_active = true
+	run_score = 0
+	run_time = 0.0
 	lives = Settings.lives()
 	start_stage(0)
 
@@ -228,6 +284,7 @@ func start_stage(index: int) -> void:
 	stage = StageScript.new()
 	stage.stage_index = index
 	stage.lives = lives
+	stage.time_attack = time_attack
 	stage.game_over.connect(_on_game_over)
 	stage.completed.connect(_on_completed)
 	world.add_child(stage)
@@ -284,19 +341,40 @@ func _close_gate() -> void:
 
 
 func _show_results(stats: Dictionary) -> void:
-	var secs := int(stats["time"])
+	var t: float = stats["time"]
 	lives = int(stats.get("lives", lives))
-	var text := "Score: %d\nEnemies defeated: %d\nTime: %d:%02d\nDeaths: %d" % [
-		stats["score"], stats["kills"], secs / 60, secs % 60, stats["deaths"]]
+	var news := Settings.record_stage(stage_index, int(stats["score"]), t, time_attack)
+	var text := "Score: %d\nEnemies defeated: %d\nTime: %s\nDeaths: %d" % [
+		stats["score"], stats["kills"], Settings.time_text(t), stats["deaths"]]
 	if lives >= 0:
 		text += "\nLives left: %d" % lives
 	var items: Array = []
 	var title := "Stage complete!"
+	if time_attack:
+		title = "Time Attack"
+		var bt: float = Settings.best_time.get(stage_index, t)
+		text += "\nBest time: %s" % Settings.time_text(bt)
+		if news != "":
+			text += "\n\n" + news.strip_edges()
+		items.append(["Try again", _start_time_attack.bind(stage_index)])
+		items.append(["Time Attack menu", show_time_attack])
+		items.append(["Main menu", show_title])
+		_show_menu(title, text, items)
+		return
+	if run_active:
+		run_score += int(stats["score"])
+		run_time += t
 	if stage_index + 1 < StageScript.STAGES.size():
 		items.append(["Next stage", next_stage])
 	else:
 		title = "The Dark Palace has fallen!"
 		text += "\n\nAll stages complete!"
+		if run_active:
+			text += "\nTotal score: %d   Total time: %s" % [run_score, Settings.time_text(run_time)]
+			news += Settings.record_run(run_score, run_time)
+			run_active = false
+	if news != "":
+		text += "\n\n" + news.strip_edges()
 	items.append(["Play stage again", restart_stage])
 	items.append(["Main menu", show_title])
 	_show_menu(title, text, items)
@@ -369,13 +447,13 @@ func _show_menu(title: String, subtitle: String, items: Array, hint: String = ""
 	menu.add_child(center)
 	var compact := layout == 2
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1 if compact else 6)
+	box.add_theme_constant_override("separation", 1 if compact else (2 if layout == 1 else 6))
 	center.add_child(box)
 	var tl := _label(title, 18 if compact else (22 if dim else 40))
 	tl.add_theme_color_override("font_color", Color("f0d050"))
 	box.add_child(tl)
 	if subtitle != "":
-		box.add_child(_label(subtitle, 12))
+		box.add_child(_label(subtitle, 9 if compact else 12))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 2 if compact else 6)
 	box.add_child(spacer)
@@ -789,6 +867,29 @@ func _heavy_test() -> void:
 			el += 1
 	print("enemies=%d elite=%d tokens=%d" % [stage.fighters.size() - 1, el, stage.tokens.size()])
 	print("HEAVYTEST done")
+	get_tree().quit(0)
+
+
+## Test menu: rekordy, časovka, výsledky celé hry (bez ukládání do skutečného nastavení).
+func _ui_test() -> void:
+	await _wait(0.3)
+	show_records()
+	await _wait(0.2)
+	show_time_attack()
+	await _wait(0.2)
+	start_game()
+	await _wait(0.5)
+	stage_index = StageScript.STAGES.size() - 1
+	run_score = 5000
+	_show_results({"score": 1200, "kills": 10, "deaths": 1, "time": 95.4, "lives": -1})
+	await _wait(0.2)
+	print("UNLOCK time=", Settings.unlocked_time, " hell=", Settings.unlocked_hell, " runs=", Settings.top_runs.size())
+	time_attack = true
+	_show_results({"score": 800, "kills": 5, "deaths": 0, "time": 61.2, "lives": -1})
+	await _wait(0.2)
+	show_records()
+	await _wait(0.2)
+	print("UITEST done")
 	get_tree().quit(0)
 
 

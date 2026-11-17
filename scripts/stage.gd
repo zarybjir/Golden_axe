@@ -4,6 +4,7 @@ extends Node2D
 signal completed(stats: Dictionary)
 signal game_over
 var lives := -1   # zbývající životy (-1 = neomezeně), nastaví main.gd
+var time_attack := false
 
 const PlayerScript := preload("res://scripts/player.gd")
 const EnemyScript := preload("res://scripts/enemy.gd")
