@@ -410,6 +410,18 @@ func _take_shots() -> void:
 	_save_shot("2b0_vylezani")
 	await _wait(1.85)
 	_save_shot("2b_hrbitov")
+	# zombie: po třech zásazích přijde o ruku, pak ji zvedne a mlátí s ní
+	for f in stage.fighters:
+		if f.get("kind") == "zombie":
+			f.pos = stage.player.pos + Vector2(50.0, 0.0)
+			for k in 3:
+				f.take_hit(6, 1, false, 0.0)
+			await _wait(0.45)
+			_save_shot("2g_zombie_ruka")
+			f.call("_take_arm")
+			await _wait(1.2)
+			_save_shot("2h_zombie_mlati")
+			break
 	start_stage(2)
 	stage.debug_jump_to_wave(0)
 	await _wait(2.6)

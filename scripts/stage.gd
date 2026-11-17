@@ -28,10 +28,10 @@ const STAGES := [
 		{"x": 1760.0, "enemies": [["ogre", 1], ["ghoul", -1], ["ghoul", 1]], "boss": true},
 	]},
 	{"name": "Hřbitov", "biome": "graveyard", "waves": [
-		{"x": 420.0, "enemies": [["ghoul", 1], ["skeleton", -1], ["ghoul", -1]]},
-		{"x": 860.0, "enemies": [["skeleton", 1], ["bat", -1], ["ghoul", -1], ["bat", 1]]},
-		{"x": 1300.0, "enemies": [["rider", 1], ["ghoul", -1], ["skeleton", 1], ["ghoul", 1]]},
-		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["skeleton", 1], ["ghoul", -1]], "boss": true},
+		{"x": 420.0, "enemies": [["zombie", 1], ["ghoul", -1], ["skeleton", -1]]},
+		{"x": 860.0, "enemies": [["zombie", 1], ["bat", -1], ["ghoul", -1], ["bat", 1]]},
+		{"x": 1300.0, "enemies": [["rider", 1], ["zombie", -1], ["skeleton", 1], ["ghoul", 1]]},
+		{"x": 1760.0, "enemies": [["ogre", 1], ["ogre", -1], ["zombie", 1], ["ghoul", -1]], "boss": true},
 	]},
 	{"name": "Džungle", "biome": "jungle",
 		"logs": [600.0, 1090.0, 1540.0],
@@ -244,7 +244,7 @@ func _spawn_wave(w: Dictionary) -> void:
 				boss = cr
 				Sfx.play("roar", 0.7)
 		else:
-			var rise: bool = not dirt_tex.is_empty() and (kind == "skeleton" or kind == "ghoul")
+			var rise: bool = not dirt_tex.is_empty() and (kind == "skeleton" or kind == "ghoul" or kind == "zombie")
 			if rise:
 				# vyleze ze země někde na obrazovce, ne moc blízko hrdiny
 				for tries in 12:

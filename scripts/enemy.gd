@@ -22,6 +22,10 @@ const KINDS := {
 	"bat": {"hp": 16, "range": 38.0, "speed": Vector2(120, 70), "reach": 20.0, "attack": "bat_swoop", "cool": 50,
 		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 140,
 		"sprite": "netopyr", "h": 62.0, "fly": true, "hit_w": 14.0},
+	# Zombie: pomalá, vydrží hodně. Po 3 zásazích přijde o ruku, zvedne ji, zrychlí
+	# a mlátí s ní; padne po dalších 6 zásazích. Grafika: art/enemy_sprite/zombie_*.png
+	"zombie": {"hp": 999, "range": 30.0, "speed": Vector2(24, 14), "reach": 20.0, "attack": "zombie_claw", "cool": 70,
+		"parts": "gob", "weapon": "club", "grip": Vector2(3.5, 9.0), "scale": 1.6, "score": 400, "hit_w": 12.0},
 	"skeleton": {"hp": 34, "range": 66.0, "speed": Vector2(70, 42), "reach": 46.0, "attack": "sp_atk", "cool": 64,
 		"parts": "skel", "weapon": "spear", "grip": Vector2(4.0, 13.0), "scale": 2.0, "score": 150, "idle": "sp_idle"},
 	"ogre": {"hp": 260, "range": 100.0, "speed": Vector2(38, 26), "reach": 30.0, "attack": "ogre_slam", "cool": 56,
@@ -39,12 +43,26 @@ var dead_t := 0
 var sprite_tex: Texture2D = null   # nepřítel z jednoho obrázku, pohyb dopočítán kódem
 var sprite_h := 100.0
 const HOVER_Z := 64.0
+const ZombieData := preload("res://scripts/zombie_data.gd")
+
+# zombie
+const Z_ARM_HITS := 3      # po tolika zásazích přijde o ruku
+const Z_TOTAL_HITS := 9    # a po dalších 6 padne
+var z_tex := {}
+var z_phase := 0           # 0 = obě ruce, 1 = jde pro utrženou ruku, 2 = mlátí s ní
+var z_hits := 0
+var pickup_t := 0
+var arm_node: Node2D = null
+var arm_pos := Vector2.ZERO
+var arm_z := 0.0
+var arm_vz := 0.0
+var arm_vx := 0.0
 
 
 func _ready() -> void:
 	team = 1
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	cfg = KINDS[kind]
+	cfg = KINDS[kind].duplicate()
 	max_hp = int(cfg["hp"])
 	hp = max_hp
 	setup_parts(cfg["parts"], cfg["weapon"], cfg["grip"])
@@ -58,6 +76,12 @@ func _ready() -> void:
 	if cfg.has("sprite") and not EnemyAnims.SETS.has(kind):
 		sprite_tex = load("res://art/enemy_sprite/%s.webp" % cfg["sprite"])
 		sprite_h = float(cfg["h"])
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if kind == "zombie":
+		for n in ZombieData.POSE.keys():
+			z_tex[n] = load("res://art/enemy_sprite/zombie_%s.png" % n)
+		sprite_tex = z_tex["walk"]
+		sprite_h = float(ZombieData.POSE["walk"][1])
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if cfg.get("fly", false):
 		flying = true
@@ -111,6 +135,8 @@ func _rise_step() -> void:
 
 func tick() -> void:
 	physics_step()
+	if arm_node != null:
+		_arm_step()
 	if rise_t > 0:
 		_rise_step()
 		position = Vector2(roundf(pos.x), roundf(pos.y - z + sink))
@@ -146,6 +172,9 @@ func _ai() -> void:
 	cooldown -= 1
 	var p = stage.player
 	if p == null:
+		return
+	if kind == "zombie" and z_phase == 1:
+		_zombie_fetch_arm()
 		return
 	var dx: float = p.pos.x - pos.x
 	var dy: float = p.pos.y - pos.y
@@ -243,6 +272,9 @@ func _wants_block(knock: bool) -> bool:
 
 
 func take_hit(dmg: int, dir: int, knock: bool, push: float) -> void:
+	if kind == "zombie" and state != S.DOWN and state != S.DEAD:
+		_zombie_hit(dir)
+		return
 	if _wants_block(knock):
 		blocking = true
 		hurt_len = 40   # krytí se přehraje celé
@@ -297,6 +329,9 @@ func _anim_pick() -> Array:
 ## Lidojed a netopýr mají zatím jen jeden obrázek – pohyb se dopočítává
 ## (kymácení, výpad, záklon, pád, mávání křídly).
 func _draw() -> void:
+	if kind == "zombie":
+		_draw_zombie()
+		return
 	if sprite_tex == null:
 		super._draw()
 		return
@@ -437,3 +472,170 @@ func _draw_vine_arm() -> void:
 	draw_circle(tip, 5.0, Color("2a2a18"))
 	draw_line(tip, tip + Vector2(facing * 9.0, -4.0), Color("1e1e12"), 2.0)
 	draw_line(tip, tip + Vector2(facing * 9.0, 4.0), Color("1e1e12"), 2.0)
+
+
+# ---------------------------------------------------------------- hřbitov: zombie
+
+func _zombie_hit(dir: int) -> void:
+	z_hits += 1
+	flash = 6
+	facing = -dir
+	Sfx.play("hit", 0.7)
+	stage.fx.burst(Vector2(pos.x, pos.y - 60.0), Color("4a2a1a"), 8, 110.0, 0.4, 300.0, 2.0)
+	if incoming_move == "magic" or z_hits >= Z_TOTAL_HITS:
+		blocking = false
+		hurt_len = 16
+		super.take_hit(999, dir, true, 0.0)
+		return
+	if z_phase == 0 and z_hits >= Z_ARM_HITS:
+		_sever_arm(dir)
+	pickup_t = 0
+	# zombie se jen zapotácí, nepadá
+	hurt_len = 14
+	set_state(S.HURT)
+	vel = Vector2(dir * 30.0, 0.0)
+
+
+## Hrdina odsekne zombii ruku – odletí a spadne na zem.
+func _sever_arm(dir: int) -> void:
+	z_phase = 1
+	_release()
+	cfg["speed"] = Vector2(30, 18)
+	arm_pos = Vector2(pos.x + facing * 8.0, pos.y + 2.0)
+	arm_z = 62.0
+	arm_vz = 160.0
+	arm_vx = dir * 70.0
+	arm_node = Node2D.new()
+	arm_node.z_as_relative = false
+	arm_node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	arm_node.draw.connect(_draw_arm)
+	stage.add_child(arm_node)
+	stage.fx.burst(Vector2(pos.x + facing * 6.0, pos.y - 66.0), Color("5a1a14"), 22, 160.0, 0.6, 400.0, 3.0)
+	Sfx.play("heavy", 0.9)
+
+
+func _arm_step() -> void:
+	if arm_z > 0.0 or arm_vz > 0.0:
+		arm_vz -= 900.0 * DT
+		arm_z = maxf(arm_z + arm_vz * DT, 0.0)
+		arm_pos.x += arm_vx * DT
+		if arm_z == 0.0:
+			arm_vz = 0.0
+			stage.fx.dust(arm_pos, 4)
+	arm_node.z_index = int(arm_pos.y)
+	arm_node.queue_redraw()
+
+
+func _draw_arm() -> void:
+	var tex: Texture2D = z_tex["arm"]
+	var m: Array = ZombieData.POSE["arm"]
+	var w := float(m[0])
+	var h := float(m[1])
+	var spin := arm_z * 0.08 if arm_z > 0.0 else 0.0
+	arm_node.draw_set_transform(Vector2(arm_pos.x, arm_pos.y - arm_z - h * 0.4), spin, Vector2(float(facing), 1.0))
+	arm_node.draw_texture_rect(tex, Rect2(-w * 0.5, -h * 0.5, w, h), false, Color(0.9, 0.88, 0.86))
+
+
+## Bez ruky: dobelhá se k ní, shýbne se a zvedne ji druhou rukou.
+func _zombie_fetch_arm() -> void:
+	if pickup_t > 0:
+		pickup_t -= 1
+		if pickup_t == 0:
+			_take_arm()
+		return
+	if arm_z > 0.0:
+		return
+	var target := Vector2(arm_pos.x - facing * 10.0, arm_pos.y)
+	facing = 1 if arm_pos.x > pos.x else -1
+	if pos.distance_to(target) < 4.0 or absf(pos.x - arm_pos.x) < 12.0 and absf(pos.y - arm_pos.y) < 4.0:
+		pickup_t = 40
+		set_state(S.IDLE)
+		return
+	_walk_to(target)
+
+
+func _take_arm() -> void:
+	z_phase = 2
+	if arm_node != null:
+		arm_node.queue_free()
+		arm_node = null
+	cfg["speed"] = Vector2(80, 48)
+	cfg["attack"] = "zombie_club"
+	cfg["cool"] = 26
+	cfg["range"] = 40.0
+	cooldown = 10
+	Sfx.play("roar", 1.7)
+
+
+func _exit_tree() -> void:
+	if arm_node != null and is_instance_valid(arm_node):
+		arm_node.queue_free()
+
+
+func _zombie_pose() -> String:
+	if rise_t > 0:
+		return "reach" if sink > 40.0 else "walk"
+	if state == S.DOWN or state == S.DEAD or state == S.GETUP:
+		return "onearm" if z_phase > 0 else "walk"
+	if z_phase == 0:
+		return "walk"
+	if z_phase == 1:
+		return "onearm"
+	if state == S.ATTACK and not move.is_empty():
+		var h: Array = move["hit"]
+		return "club_up" if state_t < int(h[0]) else "club_hit"
+	return "club_hit"
+
+
+func _draw_zombie() -> void:
+	if state == S.DEAD and (state_t / 4) % 2 == 0:
+		return
+	var nm := _zombie_pose()
+	var tex: Texture2D = z_tex[nm]
+	var m: Array = ZombieData.POSE[nm]
+	var w := float(m[0])
+	var h := float(m[1])
+	var ax := float(m[2])
+	anim_cx = (w * 0.5 - ax) * facing
+	if sink == 0.0 and drown_t == 0:
+		_ellipse(Vector2(0, z), 20.0, 5.0, Color(0, 0, 0, 0.3))
+	var mod := Color(0.92, 0.9, 0.88)
+	if flash > 0:
+		mod = Color(1.0, 0.55, 0.5)
+	var rot := 0.0
+	var off := Vector2.ZERO
+	var t := anim_clock
+	var fast := z_phase == 2
+	match state:
+		S.WALK:
+			var f := 9.0 if fast else 4.5
+			rot = sin(t * f) * (0.05 if fast else 0.08)
+			off.y = -absf(sin(t * f)) * 2.0
+		S.IDLE:
+			if pickup_t > 0:
+				rot = 0.55 * sin(float(40 - pickup_t) / 40.0 * PI)   # shýbne se pro ruku
+			else:
+				rot = sin(t * 1.8) * 0.03
+		S.ATTACK:
+			var hh: Array = move["hit"]
+			if state_t < int(hh[0]):
+				rot = -0.14 * clampf(float(state_t) / float(hh[0]), 0.0, 1.0)
+			else:
+				var r := 1.0 - clampf(float(state_t - int(hh[1])) / 12.0, 0.0, 1.0)
+				rot = 0.22 * r
+				off.x = 10.0 * r
+		S.HURT:
+			rot = -0.16
+			off.x = -3.0
+		S.DOWN, S.DEAD:
+			rot = -minf(float(state_t) / 12.0, 1.0) * 1.45
+	draw_set_transform_matrix(Transform2D(0.0, Vector2(float(facing), 1.0), 0.0, Vector2.ZERO) * Transform2D(rot, off))
+	if sink > 0.0:
+		# vylézá ze země: kreslí se jen to, co je nad zemí
+		var vis := clampf(h - sink, 0.0, h)
+		if vis > 0.0:
+			draw_texture_rect_region(tex, Rect2(-ax, -h, w, vis), Rect2(0, 0, tex.get_width(), tex.get_height() * vis / h), mod)
+	else:
+		draw_texture_rect(tex, Rect2(-ax, -h, w, h), false, mod)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+	_draw_extra()

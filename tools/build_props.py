@@ -18,10 +18,11 @@ from build_bg import grade, RES  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BARREL_H = 34      # výška sudu ve hře (logické px)
-DRAGON_H = 136     # výška draka v klidu (logické px)
+DRAGON_H = 136
+ZOMBIE_H = 98       # výška zombie (chůze) ve hře     # výška draka v klidu (logické px)
 
 
-def parts(path, n):
+def parts(path, n, rows=False):
     im = Image.open(path).convert("RGBA")
     a = np.asarray(im)
     fg = ndimage.binary_opening(a[..., 3] > 100, iterations=2)
@@ -35,8 +36,8 @@ def parts(path, n):
         x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
         c = a[y0:y1, x0:x1].copy()
         c[..., 3] = np.where(m[y0:y1, x0:x1], c[..., 3], 0)
-        out.append((x0, c))
-    return [c for x0, c in sorted(out, key=lambda o: o[0])]
+        out.append(((y0 + y1) / 2 > a.shape[0] / 2 if rows else 0, x0, c))
+    return [o[2] for o in sorted(out, key=lambda o: (o[0], o[1]))]
 
 
 def save(arr, k, path):
@@ -60,6 +61,24 @@ def main():
     if os.path.exists(dpath):
         for i, c in enumerate(parts(dpath, 4)):
             save(c, 58 * RES / c.shape[1], f"{ROOT}/art/props/dirt_{i}.png")
+    zpath = f"{ROOT}/art/source/grim_zombie.png"
+    if os.path.exists(zpath):
+        zp = parts(zpath, 6, rows=True)
+        names = ["walk", "reach", "onearm", "club_up", "club_hit", "arm"]
+        kz = ZOMBIE_H * RES / zp[0].shape[0]
+        zmeta = {}
+        for name, c in zip(names, zp):
+            w, h = save(c, kz, f"{ROOT}/art/enemy_sprite/zombie_{name}.png")
+            al = c[..., 3] > 100
+            ys, xs = np.nonzero(al[int(al.shape[0] * 0.88):])
+            zmeta[name] = [round(w / RES, 1), round(h / RES, 1), round(float(xs.mean()) * kz / RES, 1)]
+        with open(f"{ROOT}/scripts/zombie_data.gd", "w") as fo:
+            fo.write("extends RefCounted\n## VYGENEROVÁNO skriptem tools/build_props.py\n")
+            fo.write("## póza: [šířka, výška, kotva x (střed nohou)] v logických px\n\nconst POSE := {\n")
+            for n_, v in zmeta.items():
+                fo.write(f'\t"{n_}": [{", ".join(str(x) for x in v)}],\n')
+            fo.write("}\n")
+        print(zmeta)
     idle, roar = parts(f"{ROOT}/art/source/grim_dragon.png", 2)
     k = DRAGON_H * RES / idle.shape[0]   # obě pózy ve stejném měřítku
     meta = {}
