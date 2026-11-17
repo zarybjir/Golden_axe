@@ -21,6 +21,10 @@ func _ready() -> void:
 	_add_axis("ui_down", JOY_AXIS_LEFT_Y, 1.0)
 	_add_button("ui_accept", JOY_BUTTON_A)
 	_add_button("ui_cancel", JOY_BUTTON_B)
+	# akce druhého hráče existují vždy (tlačítka dostanou až při připojení)
+	for a in ["attack", "jump", "dodge", "magic", "left", "right", "up", "down", "pause"]:
+		if not InputMap.has_action("p2_" + a):
+			InputMap.add_action("p2_" + a, 0.3)
 
 
 func _action(action_name: String, keys: Array, buttons: Array, axis: int, axis_dir: float) -> void:

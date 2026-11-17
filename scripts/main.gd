@@ -99,6 +99,10 @@ func _ready() -> void:
 		_story_test()
 	if OS.get_cmdline_user_args().has("--cooptest"):
 		_coop_test()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--coopshot="):
+			shots_dir = a.substr(11)
+			_coop_shot()
 
 
 func _process(delta: float) -> void:
@@ -1026,6 +1030,18 @@ func _coop_test() -> void:
 	await _wait(1.0)
 	print("next stage p2=", stage.player2 != null, " players=", stage.players.size())
 	print("COOPTEST done")
+	get_tree().quit(0)
+
+
+func _coop_shot() -> void:
+	await _wait(0.5)
+	start_stage(0)
+	stage.debug_jump_to_wave(0)
+	stage.join_p2()
+	stage.player2.invuln = 0
+	stage.player2.pos = stage.player.pos + Vector2(40.0, 10.0)
+	await _wait(1.2)
+	_save_shot("coop")
 	get_tree().quit(0)
 
 
